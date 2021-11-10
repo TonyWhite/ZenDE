@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# i3lock
+# imagemagick
+# x11-xserver-utils
+
+# TO DO: import config (this is pure bash initializations)
+
+function main()
+{
+  xsetroot -cursor_name X_cursor
+  sleep 0.3
+  import -window root "/tmp/zen-lock.png" -colors 16 -type Grayscale -negate
+  convert "/tmp/zen-lock.png" -blur 100.0 "/usr/share/zen-de/lock/none.png" -gravity center -compose Difference -composite "/tmp/zen-lock.png"
+  i3lock -i "/tmp/zen-lock.png"
+  xsetroot -cursor_name left_ptr
+  rm "/tmp/zen-lock.png"
+}
+
+main "$@"
