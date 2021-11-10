@@ -1,0 +1,7 @@
+# Config file for zen-lock
+
+# Sleep before Freeze Screen
+ZEN_FREEZE_SLEEP=0.3
+
+# Mask for freeze
+ZEN_FREEZE_MASK="enso.png"
