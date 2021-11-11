@@ -1,0 +1,372 @@
+#!/bin/bash
+OLD_IFS=$IFS
+RETURN=$'\n'
+# https://specifications.freedesktop.org/menu-spec/menu-spec-1.0.html
+# Launcher locations
+USER_APPLICATIONS_FOLDER="/home/${USER}/.local/share/applications"
+ROOT_APPLICATIONS_FOLDER="/usr/share/applications"
+
+# menu categories
+declare -A MAIN_MENU
+declare -A ICONS_CATEGORY
+declare -A ADDITIONAL_CATEGORY
+MAIN_MENU=( ["Utility"]="" ["Multimedia"]="" ["Game"]="" ["Graphics"]="" ["Network"]="" ["Education"]="" ["Development"]="" ["System"]="" ["Office"]="" ["Other"]="" )
+ICONS_CATEGORY=( ["Utility"]="applications-accessories" ["Multimedia"]="applications-multimedia" ["Game"]="applications-games" ["Graphics"]="applications-graphics" ["Network"]="applications-internet" ["Education"]="applications-science" ["Development"]="applications-development" ["System"]="applications-system" ["Office"]="applications-office" ["Other"]="applications-other" )
+ADDITIONAL_CATEGORY=( ["TextTools"]="Utility" ["TelephonyTools"]="Utility" ["Archiving"]="Utility" ["Compression"]="Utility" ["FileTools"]="Utility" ["Accessibility"]="Utility" ["Calculator"]="Utility" ["Clock"]="Utility" ["TextEditor"]="Utility" )
+ADDITIONAL_CATEGORY+=( ["AudioVideo"]="Multimedia" ["Audio"]="Multimedia" ["Video"]="Multimedia" ["Midi"]="Multimedia" ["Mixer"]="Multimedia" ["Sequencer"]="Multimedia" ["Tuner"]="Multimedia" ["TV"]="Multimedia" ["AudioVideoEditing"]="Multimedia" ["Player"]="Multimedia" ["Recorder"]="Multimedia" ["DiscBurning"]="Multimedia" ["Music"]="Multimedia" )
+ADDITIONAL_CATEGORY+=( ["ActionGame"]="Game" ["AdventureGame"]="Game" ["ArcadeGame"]="Game" ["BoardGame"]="Game" ["BlocksGame"]="Game" ["CardGame"]="Game" ["KidsGame"]="Game" ["LogicGame"]="Game" ["RolePlaying"]="Game" ["Simulation"]="Game" ["SportsGame"]="Game" ["StrategyGame"]="Game" ["Amusement"]="Game" )
+ADDITIONAL_CATEGORY+=( ["2DGraphics"]="Graphics" ["VectorGraphics"]="Graphics" ["RasterGraphics"]="Graphics" ["3DGraphics"]="Graphics" ["Scanning"]="Graphics" ["OCR"]="Graphics" ["Photography"]="Graphics" ["Publishing"]="Graphics" ["Viewer"]="Graphics" )
+ADDITIONAL_CATEGORY+=( ["Dialup"]="Network" ["InstantMessaging"]="Network" ["Chat"]="Network" ["IRCClient"]="Network" ["FileTransfer"]="Network" ["HamRadio"]="Network" ["News"]="Network" ["P2P"]="Network" ["RemoteAccess"]="Network" ["Telephony"]="Network" ["VideoConference"]="Network" ["WebBrowser"]="Network" )
+ADDITIONAL_CATEGORY+=( ["Art"]="Education" ["Construction"]="Education" ["Languages"]="Education" ["Science"]="Education" ["Economy"]="Education" ["Geography"]="Education" ["History"]="Education" ["Literature"]="Education" ["Sports"]="Education" ["ArtificialIntelligence"]="Education" ["Astronomy"]="Education" ["Biology"]="Education" ["Chemistry"]="Education" ["ComputerEducation"]="Education" ["DataVisualization"]="Education" ["Electricity"]="Education" ["Geology"]="Education" ["GeoEducation"]="Education" ["ImageProcessing"]="Education" ["Math"]="Education" ["NumericalAnalysis"]="Education" ["MedicalSoftware"]="Education" ["Physics"]="Education" ["Robotics"]="Education" ["ParallelComputing"]="Education" ["Electronics"]="Education" ["Engineering"]="Education" )
+ADDITIONAL_CATEGORY+=( ["Building"]="Development" ["Debugger"]="Development" ["IDE"]="Development" ["GUIDesigner"]="Development" ["Profiling"]="Development" ["RevisionControl"]="Development" ["RevisionControl"]="Development" ["WebDevelopment"]="Development" )
+ADDITIONAL_CATEGORY+=( ["Emulator"]="System" ["TerminalEmulator"]="System" ["Filesystem"]="System" ["Monitor"]="System" ["Security"]="System" ["Settings"]="System" ["DesktopSettings"]="System" ["HardwareSettings"]="System" ["Printing"]="System" ["PackageManager"]="System" ["Accessibility"]="System" )
+ADDITIONAL_CATEGORY+=( ["Calendar"]="Office" ["ContactManagement"]="Office" ["Database"]="Office" ["Dictionary"]="Office" ["Chart"]="Office" ["Email"]="Office" ["Finance"]="Office" ["FlowChart"]="Office" ["PDA"]="Office" ["ProjectManagement"]="Office" ["Presentation"]="Office" ["Spreadsheet"]="Office" ["WordProcessor"]="Office" )
+
+function main()
+{
+  IFS=$RETURN
+  # SCANNING FILES
+  # lists user's launchers without path
+  cd "${USER_APPLICATIONS_FOLDER}"
+  USER_LAUNCHERS=(`find *.desktop 2>/dev/null`)
+  
+  # lists root's launchers without path
+  cd "${ROOT_APPLICATIONS_FOLDER}"
+  ROOT_LAUNCHERS=(`find *.desktop 2>/dev/null`)
+  
+  # if same name.desktop in user and root, take user's launchers.
+  for (( I=0; I<${#ROOT_LAUNCHERS[@]}; I++ )); do
+    for USER_LAUNCHER in ${USER_LAUNCHERS[@]}; do
+      if [[ "${ROOT_LAUNCHERS[$I]}" == "${USER_LAUNCHER}" ]]; then
+        unset -v 'ROOT_LAUNCHERS[$I]'
+      fi
+    done
+  done
+  ROOT_LAUNCHERS=(${ROOT_LAUNCHERS[@]}) # Update array
+  
+  # Lists valid launchers with full path
+  VALID_LAUNCHERS=()
+  for ITEM in ${USER_LAUNCHERS[@]}; do
+    VALID_LAUNCHERS+=("${USER_APPLICATIONS_FOLDER}/${ITEM}")
+  done
+  for ITEM in ${ROOT_LAUNCHERS[@]}; do
+    VALID_LAUNCHERS+=("${ROOT_APPLICATIONS_FOLDER}/${ITEM}")
+  done
+  
+  # Read locale lang(L) and country(C)
+  LOCALE_L_C="[`echo ${LANG} | cut -f1 -d '.'`]"
+  LOCALE_L="[`echo ${LANG} | cut -f1 -d '.' | cut -f1 -d '_'`]"
+  
+  # Read launchers and prepare menu entries
+  MENU_UTILITY=()
+  MENU_MULTIMEDIA=()
+  MENU_GAMES=()
+  MENU_GRAPHICS=()
+  MENU_NETWORK=()
+  MENU_EDUCATION=()
+  MENU_DEVELOPMENT=()
+  MENU_SYSTEM=()
+  MENU_OFFICE=()
+  MENU_OTHER=()
+  for (( I=0; I<${#VALID_LAUNCHERS[@]}; I++ )); do
+    TMP_LAUNCHER=($(cat "${VALID_LAUNCHERS[$I]}"))
+    TMP_NAME_L_C=""
+    TMP_NAME_L=""
+    TMP_NAME=""
+    TMP_COMMENT_L_C=""
+    TMP_COMMENT_L=""
+    TMP_COMMENT=""
+    TMP_ICON=""
+    TMP_EXEC=""
+    TMP_PATH=""
+    TMP_CATEGORY=""
+    TMP_DISPLAYABLE=true
+    DESKTOP_ENTRY=false
+    for (( ROW=0; ROW<${#TMP_LAUNCHER[@]}; ROW++ )); do
+      # Read info only in [Desktop Entry]
+      if [[ "${TMP_LAUNCHER[${ROW}]}" == "[Desktop Entry]" ]]; then
+        DESKTOP_ENTRY=true
+      elif [[ "${TMP_LAUNCHER[${ROW}]:0:1}" == "[" ]]; then
+        DESKTOP_ENTRY=false
+      fi
+      
+      if [[ ${DESKTOP_ENTRY} == true ]]; then
+        case "${TMP_LAUNCHER[$ROW]}" in
+          "Name${LOCALE_L_C}="*)
+            TMP_NAME_L_C="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Name${LOCALE_L}="*)
+            TMP_NAME_L="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Name="*)
+            TMP_NAME="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Comment${LOCALE_L_C}="*)
+            TMP_COMMENT_L_C="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Comment${LOCALE_L}="*)
+            TMP_COMMENT_L="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Comment="*)
+            TMP_COMMENT="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Icon="*)
+            TMP_ICON="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Exec="*)
+            TMP_EXEC="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" | sed 's/%.//' )" )"
+            # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
+            # gtk-launch /path/of/launcher.desktop
+            # binary from: libgtk-3-bin
+          ;;
+          "Path="*)
+            TMP_PATH="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+          ;;
+          "Categories="*)
+            TMP_CATEGORIES="$( cut -d '=' -f 2- <<< "$( echo "${TMP_LAUNCHER[$ROW]}" )" )"
+            
+            # Split categories one by one
+            OLD_IFS=$IFS
+            IFS=';'
+            TMP_CATEGORIES=(${TMP_CATEGORIES})
+            IFS=${OLD_IFS}
+            
+            # Search for main category
+            for ITEM in ${TMP_CATEGORIES[@]}; do
+              for KEY in ${!MAIN_MENU[@]}; do
+                if [[ "${ITEM}" == "${KEY}" ]]; then
+                  TMP_CATEGORY="${ITEM}"
+                  break
+                fi
+              done
+              if [[ ${#TMP_CATEGORY} -gt 0 ]]; then
+                break # Stop searching if the category has already been found
+              fi
+            done
+            
+            # Main category not founded?
+            if [[ ${#TMP_CATEGORY} == 0 ]]; then
+              # Search for additional category
+              for ITEM in ${TMP_CATEGORIES[@]}; do
+                for KEY in ${!ADDITIONAL_CATEGORY[@]}; do
+                  if [[ "${ITEM}" == "${KEY}" ]]; then
+                    # Additional category founded!
+                    TMP_CATEGORY="${ADDITIONAL_CATEGORY[${KEY}]}" # Retrieve main category from additional category
+                    break
+                  fi
+                done
+                if [[ ${#TMP_CATEGORY} -gt 0 ]]; then
+                  break
+                fi
+              done
+            fi
+            
+            # No category? Put launcher in 'Other'
+            if [[ ${#TMP_CATEGORY} == 0 ]]; then
+              TMP_CATEGORY="Other"
+            fi
+            
+            IFS=${OLD_IFS}
+          ;;
+          "NoDisplay=true"*)
+            TMP_DISPLAYABLE=false
+          ;;
+        esac
+      fi
+    done
+    
+    if [[ $TMP_DISPLAYABLE == true ]]; then
+      
+      # Select translated name
+      if [[ ${#TMP_NAME_L_C} -gt 0 ]]; then
+        TMP_NAME="${TMP_NAME_L_C}"
+      elif [[ ${#TMP_NAME_L} -gt 0 ]]; then
+        TMP_NAME="${TMP_NAME_L}"
+      fi
+      
+      # Select translated comment
+      if [[ ${#TMP_COMMENT_L_C} -gt 0 ]]; then
+        TMP_COMMENT="${TMP_COMMENT_L_C}"
+      elif [[ ${#TMP_COMMENT_L} -gt 0 ]]; then
+        TMP_COMMENT="${TMP_COMMENT_L}"
+      fi
+      
+      # Get launcher file name
+      OLD_IFS=$IFS
+      IFS="/"
+      TMP_FILE_NAME=(${VALID_LAUNCHERS[$I]})
+      TMP_FILE_NAME="${TMP_FILE_NAME[${#TMP_FILE_NAME[@]}-1]}"
+      IFS=${OLD_IFS}
+      
+      # Can I make menu entry?
+      #echo "  Name: ${TMP_NAME}"
+      #echo "  Comment: ${TMP_COMMENT}"
+      #echo "  Icon: ${TMP_ICON}"
+      #echo "  Exec: ${TMP_EXEC}"
+      #echo "  Path: ${TMP_PATH}"
+      #echo "  Category: ${TMP_CATEGORY}"
+      if [[ ${#TMP_NAME} -gt 0 ]] && [[ ${#TMP_EXEC} -gt 0 ]]; then
+        #"Utility" "Multimedia" "Game" "Graphics" "Network" "Education" "Development" "System" "Office" "Other"
+        MENU_PROGRAM="<!-- ${TMP_FILE_NAME} --><Program label=\"${TMP_NAME}\" tooltip=\"${TMP_COMMENT}\" icon=\"${TMP_ICON}\">${TMP_EXEC}</Program>"
+        case "${TMP_CATEGORY}" in
+          "Utility")
+          MENU_UTILITY+=("${MENU_PROGRAM}")
+          ;;
+          "Multimedia")
+          MENU_MULTIMEDIA+=("${MENU_PROGRAM}")
+          ;;
+          "Game")
+          MENU_GAME+=("${MENU_PROGRAM}")
+          ;;
+          "Graphics")
+          MENU_GRAPHICS+=("${MENU_PROGRAM}")
+          ;;
+          "Network")
+          MENU_NETWORK+=("${MENU_PROGRAM}")
+          ;;
+          "Education")
+          MENU_EDUCATION+=("${MENU_PROGRAM}")
+          ;;
+          "Development")
+          MENU_DEVELOPMENT+=("${MENU_PROGRAM}")
+          ;;
+          "System")
+          MENU_SYSTEM+=("${MENU_PROGRAM}")
+          ;;
+          "Office")
+          MENU_OFFICE+=("${MENU_PROGRAM}")
+          ;;
+          "Other")
+          MENU_OTHER+=("${MENU_PROGRAM}")
+          ;;
+        esac
+      fi
+    fi
+  done
+  
+  # Sort arrays
+  MENU_UTILITY=($(sort <<<${MENU_UTILITY[*]}))
+  MENU_MULTIMEDIA=($(sort <<<${MENU_MULTIMEDIA[*]}))
+  MENU_GAME=($(sort <<<${MENU_GAME[*]}))
+  MENU_GRAPHICS=($(sort <<<${MENU_GRAPHICS[*]}))
+  MENU_NETWORK=($(sort <<<${MENU_NETWORK[*]}))
+  MENU_EDUCATION=($(sort <<<${MENU_EDUCATION[*]}))
+  MENU_DEVELOPMENT=($(sort <<<${MENU_DEVELOPMENT[*]}))
+  MENU_SYSTEM=($(sort <<<${MENU_SYSTEM[*]}))
+  MENU_OFFICE=($(sort <<<${MENU_OFFICE[*]}))
+  MENU_OTHER=($(sort <<<${MENU_OTHER[*]}))
+  
+  # Print menus
+  echo "<JWM>"
+  if [[ ${#MENU_UTILITY[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_UTILITY}\" icon=\"${ICONS_CATEGORY["Utility"]}\">"
+    for ITEM in ${MENU_UTILITY[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_MULTIMEDIA[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_MULTIMEDIA}\" icon=\"${ICONS_CATEGORY["Multimedia"]}\">"
+    for ITEM in ${MENU_MULTIMEDIA[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_GAME[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_GAME}\" icon=\"${ICONS_CATEGORY["Game"]}\">"
+    for ITEM in ${MENU_GAME[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_GRAPHICS[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_GRAPHICS}\" icon=\"${ICONS_CATEGORY["Graphics"]}\">"
+    for ITEM in ${MENU_GRAPHICS[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_NETWORK[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_NETWORK}\" icon=\"${ICONS_CATEGORY["Network"]}\">"
+    for ITEM in ${MENU_NETWORK[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_EDUCATION[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_EDUCATION}\" icon=\"${ICONS_CATEGORY["Education"]}\">"
+    for ITEM in ${MENU_EDUCATION[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_DEVELOPMENT[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_DEVELOPMENT}\" icon=\"${ICONS_CATEGORY["Development"]}\">"
+    for ITEM in ${MENU_DEVELOPMENT[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_SYSTEM[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_SYSTEM}\" icon=\"${ICONS_CATEGORY["System"]}\">"
+    for ITEM in ${MENU_SYSTEM[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_OFFICE[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_OFFICE}\" icon=\"${ICONS_CATEGORY["Office"]}\">"
+    for ITEM in ${MENU_OFFICE[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  if [[ ${#MENU_OTHER[@]} -gt 0 ]]; then
+    echo "<Menu label=\"${LABEL_OTHER}\" icon=\"${ICONS_CATEGORY["Other"]}\">"
+    for ITEM in ${MENU_OTHER[@]}; do
+      echo "${ITEM}"
+    done
+    echo "</Menu>"
+  fi
+  
+  echo "</JWM>"
+}
+
+# Default language: en_US
+LABEL_UTILITY="Accessories"
+LABEL_MULTIMEDIA="Multimedia"
+LABEL_GAME="Games"
+LABEL_GRAPHICS="Graphics"
+LABEL_NETWORK="Internet"
+LABEL_EDUCATION="Education"
+LABEL_DEVELOPMENT="Development"
+LABEL_SYSTEM="System Tools"
+LABEL_OFFICE="Office"
+LABEL_OTHER="Others"
+
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d '.'`" in
+  "it_IT")
+    LABEL_UTILITY="Accessori"
+    LABEL_MULTIMEDIA="Multimedia"
+    LABEL_GAME="Giochi"
+    LABEL_GRAPHICS="Grafica"
+    LABEL_NETWORK="Internet"
+    LABEL_EDUCATION="Istruzione"
+    LABEL_DEVELOPMENT="Programmazione"
+    LABEL_SYSTEM="Sistema"
+    LABEL_OFFICE="Ufficio"
+    LABEL_OTHER="Altro"
+    ;;
+esac
+
+main
