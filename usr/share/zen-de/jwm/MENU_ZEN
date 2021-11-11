@@ -1,0 +1,163 @@
+#!/bin/bash
+
+function main()
+{
+  echo "<JWM>"
+  echo "<Program icon=\"${ICON_FILE_MANAGER}\" label=\"${LABEL_FILE_MANAGER}\">pcmanfm -n \"computer:///\"</Program>"
+  echo "<Program icon=\"${ICON_WEB_BROWSER}\" label=\"${LABEL_WEB_BROWSER}\">x-www-browser</Program>"
+  echo "<Program icon=\"system-software-install.png\" label=\"${LABEL_APPS}\">pcmanfm -n \"menu://applications/\"</Program>"
+  echo "<Program icon=\"terminal.png\" label=\"${LABEL_SHELL}\">x-terminal-emulator</Program>"
+  echo "<Menu label=\"${LABEL_STYLE}\" icon=\"preferences-desktop.png\">"
+  echo "  <Program icon=\"preferences-desktop-theme.png\" label=\"${LABEL_THEMES}\">lxappearance</Program>"
+  echo "  <Program icon=\"wallpaper.png\" label=\"${LABEL_WALLPAPER}\">zen-wallpaper</Program>"
+  echo "</Menu>"
+  echo "<Menu label=\"${LABEL_SYSTEM}\" icon=\"applications-system.png\">"
+  echo "  <Program icon=\"file-manager.png\" label=\"${LABEL_FILE_MANAGER} (root)\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pcmanfm -n \"/\"</Program>"
+  echo "  <Program icon=\"gksu-root-terminal.png\" label=\"${LABEL_SHELL} (root)\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY x-terminal-emulator</Program>"
+  echo "  <Program icon=\"synaptic.png\" label=\"${LABEL_PACKAGE_MANAGER} (root)\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY synaptic</Program>"
+  echo "  <Separator/>"
+  echo "  <Program icon=\"gparted.png\" label=\"${LABEL_PARTITION_MANAGER} (root)\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY gparted</Program>"
+  echo "  <Program icon=\"printer.png\" label=\"${LABEL_PRINTERS_MANAGER}\">zen-printers</Program>"
+  echo "  <Program icon=\"utilities-system-monitor.png\" label=\"${LABEL_PROCESS_MANAGER}\">lxtask</Program>"
+  echo "  <Separator/>"
+  echo "  <Program label=\"${LABEL_REBOOT} (root)\" icon=\"reload.png\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY zen-reboot</Program>"
+  echo "  <Program label=\"${LABEL_POWEROFF} (root)\" icon=\"system-shutdown.png\">pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY zen-shutdown</Program>"
+  echo "</Menu>"
+  echo "<Separator/>"
+  echo "<Menu label=\"${LABEL_SESSION}\" icon=\"/usr/share/zen-de/zen-logo.svg\">"
+  echo "  <Program icon=\"lock.png\" label=\"${LABEL_LOCK_SCREEN}\">zen-lock</Program>"
+  echo "  <Restart label=\"${LABEL_RESTART}\" icon=\"reload.png\"/>"
+  echo "  <Exit label=\"${LABEL_LOGOUT}\" confirm=\"true\" icon=\"system-log-out.png\"/>"
+  echo "</Menu>"
+  echo "<Menu label=\"${LABEL_COMPUTER}\" icon=\"computer.png\">"
+  echo "  <Program label=\"${LABEL_REBOOT}\" icon=\"reload.png\">zen-reboot</Program>"
+  echo "  <Program label=\"${LABEL_SHUTDOWN}\" icon=\"system-shutdown.png\">zen-shutdown</Program>"
+  echo "</Menu>"
+  echo "</JWM>"
+}
+
+# Read .desktop file to retrieve icon
+# ARGS
+# 1: launcher name without path and ".desktop"
+# 2: fallback icon
+function get_icon()
+{
+  LAUNCHER=$1         # Launcher
+  FALLBACK_ICON=$2    # Fallback icon
+  ICON=""
+  LAUNCHER="/usr/share/applications/${LAUNCHER}.desktop"
+  if [[ -f "${LAUNCHER}" ]]; then
+    ICON="`cat "${LAUNCHER}" | grep -i "Icon=" | cut -f2 -d '='`"
+  fi
+  if [[ ${#ICON} == 0 ]]; then
+    ICON="${FALLBACK_ICON}"
+  fi
+  echo "${ICON}"
+}
+
+# Read .desktop file to retrieve application name
+# ARGS
+# 1: launcher name without path and ".desktop"
+# 2: fallback name
+function get_name()
+{
+  LAUNCHER="$1"         # Launcher
+  FALLBACK_NAME="$2"    # Fallback name
+  NAME=""
+  LAUNCHER="/usr/share/applications/${LAUNCHER}.desktop"
+  if [[ -f "${LAUNCHER}" ]]; then
+    NAME_LANG_A=""    # When start with "Name[en_US]="
+    NAME_LANG_B=""    # When start with "Name[en]="
+    NAME_LANG_C=""    # When start with "Name="
+    LANG_A="`echo ${LANG} | cut -f1 -d '.'`"
+    LANG_B="`echo ${LANG} | cut -f1 -d '.' | cut -f1 -d '_'`"
+    NAME_LANG_A="$( cut -d '=' -f 2- <<< "`echo "${CONTENT_LAUNCHER[@]}" | grep -i "^Name\[${LANG_A}\]=" -m 1`" )"
+    NAME_LANG_B="$( cut -d '=' -f 2- <<< "`echo "${CONTENT_LAUNCHER[@]}" | grep -i "^Name\[${LANG_B}\]=" -m 1`" )"
+    NAME_LANG_C="$( cut -d '=' -f 2- <<< "`echo "${CONTENT_LAUNCHER[@]}" | grep -i "^Name=" -m 1`" )"
+    if [[ "${#NAME_LANG_A[0]}" != "0" ]]; then
+      NAME="${NAME_LANG_A[0]}"
+    elif [[ "${#NAME_LANG_B[0]}" != "0" ]]; then
+      NAME="${NAME_LANG_B[0]}"
+    elif [[ "${#NAME_LANG_C[0]}" != "0" ]]; then
+      NAME="${NAME_LANG_C[0]}"
+    else
+      NAME="${FALLBACK_NAME}"
+    fi
+  fi
+  echo "${NAME}"
+}
+
+# Default language: en_US
+LABEL_NAME="Computer"
+LABEL_FILE_MANAGER="File Manager"
+LABEL_WEB_BROWSER="Web Browser"
+LABEL_APPS="Apps"
+LABEL_SHELL="Shell"
+LABEL_STYLE="Style"
+LABEL_THEMES="Themes"
+LABEL_WALLPAPER="Wallpaper"
+LABEL_SYSTEM="System"
+LABEL_PACKAGE_MANAGER="Package Manager"
+LABEL_PARTITION_MANAGER="Partition Manager"
+LABEL_PRINTERS_MANAGER="Printers Manager"
+LABEL_PROCESS_MANAGER="Process Manager"
+LABEL_REBOOT="Reboot"
+LABEL_POWEROFF="Poweroff"
+LABEL_SESSION="Session"
+LABEL_LOCK_SCREEN="Lock Screen"
+LABEL_RESTART="Restart JWM"
+LABEL_LOGOUT="Logout"
+LABEL_COMPUTER="Computer"
+LABEL_SHUTDOWN="Shutdown"
+
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d '.'`" in
+  "it_IT")
+    LABEL_NAME="Computer"
+    LABEL_FILE_MANAGER="Gestore File"
+    LABEL_WEB_BROWSER="Browser Web"
+    LABEL_APPS="Applicazioni"
+    LABEL_SHELL="Terminale"
+    LABEL_STYLE="Stile"
+    LABEL_THEMES="Temi"
+    LABEL_WALLPAPER="Sfondo"
+    LABEL_SYSTEM="Sistema"
+    LABEL_PACKAGE_MANAGER="Gestore Pacchetti"
+    LABEL_PARTITION_MANAGER="Gestore delle Partizioni"
+    LABEL_PRINTERS_MANAGER="Gestore delle Stampanti"
+    LABEL_PROCESS_MANAGER="Gestore dei Processi"
+    LABEL_REBOOT="Riavvia"
+    LABEL_POWEROFF="Spegni"
+    LABEL_SESSION="Sessione"
+    LABEL_LOCK_SCREEN="Blocca Schermo"
+    LABEL_RESTART="Riavvia JWM"
+    LABEL_LOGOUT="Esci"
+    LABEL_COMPUTER="Computer"
+    LABEL_SHUTDOWN="Spegni"
+    ;;
+esac
+
+#######################
+# DEFAULT WEB BROWSER #
+#######################
+
+# Detect launcher for default browser
+DEFAULT_BROWSER=(`update-alternatives --get-selections | grep x-www-browser`)
+DEFAULT_BROWSER="${DEFAULT_BROWSER[2]}"
+OLD_IFS=$IFS
+IFS="/"
+DEFAULT_BROWSER=(${DEFAULT_BROWSER})
+DEFAULT_BROWSER=${DEFAULT_BROWSER[$[${#DEFAULT_BROWSER[@]}-1]]}
+IFS=$OLD_IFS
+
+# Detect icon and name
+ICON_WEB_BROWSER="`get_icon "${DEFAULT_BROWSER}" "web-browser"`"
+LABEL_WEB_BROWSER="`get_name "${DEFAULT_BROWSER}" "${LABEL_WEB_BROWSER}"`"
+
+###########
+# PCMANFM #
+###########
+ICON_FILE_MANAGER="`get_icon "pcmanfm" "file-manager"`"
+LABEL_FILE_MANAGER="`get_name "pcmanfm" "${LABEL_FILE_MANAGER}"`"
+
+main
