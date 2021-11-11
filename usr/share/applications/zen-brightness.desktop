@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Zen Brightness
+Icon=zen-brightness
+Exec=zen-brightness
+NoDisplay=false
+Categories=System;
+StartupNotify=false
+Terminal=false
