@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# findutils (xargs)
+# neofetch
+# sudo
+# zenity
+
+# Default language: en_US
+TITLE="System Information"
+
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d ' ' | cut -f1 -d '.'`" in
+  "it_IT")
+    TITLE="Informazioni di sistema"
+    ;;
+esac
+
+# Split neofetch line by line
+RETURN=$'\n'
+OLD_IFS=$IFS
+IFS=$RETURN
+FETCHINFO=(`neofetch --stdout`)
+
+# Acquire informations from neofetch
+SYSINFO=""           # System information with pango markup
+OS_NAME=""           # OS name
+ICON_THEME_NAME=""   # icon theme
+for INFO in ${FETCHINFO[@]}; do
+  if [[ "$INFO" == *":"* ]]; then
+    IFS=":"
+    INFO_ARRAY=($INFO)
+    INFO_ARRAY[1]="`echo ${INFO_ARRAY[1]} | xargs`"
+    if [[ "${INFO_ARRAY[0]}" == "OS" ]]; then
+      IFS=" "
+      WORDS=(${INFO_ARRAY[1]})
+      OS_NAME=`echo ${WORDS[0]} | tr '[:upper:]' '[:lower:]'`
+    elif [[ "${INFO_ARRAY[0]}" == "Icons" ]]; then
+      IFS=" "
+      WORDS=(${INFO_ARRAY[1]})
+      ICON_THEME_NAME=`echo ${WORDS[0]}`
+    elif [[ "${INFO_ARRAY[0]}" == "Terminal" ]]; then
+      # Default terminal visible only in Debian based distros
+      DEBIAN_TERMINAL="$(basename $(readlink -f /usr/bin/x-terminal-emulator))"
+      if [[ "${DEBIAN_TERMINAL}" != "" ]]; then
+        INFO_ARRAY[1]="${DEBIAN_TERMINAL}"
+      else
+        continue
+      fi
+    fi
+    SYSINFO+="<b>${INFO_ARRAY[0]}</b>: ${INFO_ARRAY[1]}\n"
+    IFS=$RETURN
+  elif [[ "$INFO" == *"@"* ]]; then
+    IFS="@"
+    INFO_ARRAY=($INFO)
+    SYSINFO+="<b>${INFO_ARRAY[0]}</b>@<b>${INFO_ARRAY[1]}</b>\n"
+    IFS=$RETURN
+  else
+    SYSINFO+="${INFO}\n"
+  fi
+done
+SYSINFO=${SYSINFO::-1} # Last char is "\n": remove it
+IFS=$OLD_IFS
+#echo "OS name: ${OS_NAME}"
+#echo "Icon theme: ${ICON_THEME_NAME}"
+
+
+# Detect icon themes and inherits themes
+VALID_ICONS_PATH=()                                        # Array of valid icons path
+VALID_THEMES_FOLDERS=()                                    # Array of valid themes folders
+VALID_THEMES_NAMES=("${ICON_THEME_NAME}")                  # Array of valid themes names
+INDEX_VALID_THEMES_NAMES=0                                 # Index for VALID_THEMES_NAMES array
+THEMES_FOLDERS=("/home/$USER/.icons/" "/usr/share/icons/") # Icon theme folders
+
+while [ $INDEX_VALID_THEMES_NAMES -lt ${#VALID_THEMES_NAMES[@]} ]; do
+  for THEME_FOLDER in ${THEMES_FOLDERS[@]}; do
+    if [[ -d "${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}" ]]; then
+      VALID_THEMES_FOLDERS+=("${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}/")
+      
+      # Detect OS icons in this theme
+      IFS=$RETURN
+      THEME_FOLDERS=(`ls -1 -R ${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]} | grep "/"`)
+      for THEME_SUBFOLDER in ${THEME_FOLDERS[@]}; do
+        THEME_SUBFOLDER=${THEME_SUBFOLDER::-1} # Remove last char ":"
+        THEME_ICONS=(`ls -1 ${THEME_SUBFOLDER}/*${OS_NAME}* 2>/dev/null`)
+        if [[ "$?" != "0" ]]; then
+          THEME_ICONS=() # Add icons only if they exists
+        fi
+        VALID_ICONS_PATH+=(${THEME_ICONS[@]})
+      done
+      
+      # Detect Inherits themes in index.theme
+      IFS="="
+      INHERITS_ROW=(`cat ${THEME_FOLDER}${VALID_THEMES_NAMES[${INDEX_VALID_THEMES_NAMES}]}/index.theme | grep -i "^Inherits"`)
+      IFS=$OLD_IFS
+      INHERITS_THEMES=(`echo ${INHERITS_ROW[1]} | tr ',' ' '`) # Look for the comma as delimiter
+      
+      # Add inherits themes to VALID_THEMES_NAMES
+      for INHERITS_THEME in ${INHERITS_THEMES[@]}; do
+        NEW_THEME=true
+        for VALID_THEME_NAME in ${VALID_THEMES_NAMES[@]}; do
+          if [[ "${INHERITS_THEME}" == "${VALID_THEME_NAME}" ]]; then
+            NEW_THEME=false
+          fi
+        done
+        if [[ $NEW_THEME == true ]]; then
+          VALID_THEMES_NAMES+=("${INHERITS_THEME}")
+          echo "Inherits: ${INHERITS_THEME}"
+        fi
+      done
+    fi
+  done
+  INDEX_VALID_THEMES_NAMES=$((INDEX_VALID_THEMES_NAMES+1))
+done
+echo ""
+
+# Search icon in fallback paths
+IFS=$RETURN
+SHARE_ICONS=(`ls -1 /usr/share/icons/* | grep -i "${OS_NAME}"`)
+SHARE_PIXMAPS=(`ls -1 /usr/share/pixmaps/* | grep -i "${OS_NAME}"`)
+IFS=$OLD_IFS
+
+VALID_ICONS_PATH+=(${SHARE_ICONS[@]})
+VALID_ICONS_PATH+=(${SHARE_PIXMAPS[@]})
+
+#Remove path and extension for each result
+#Remove all valid names for OS logo: "icon" "logo" "start-here" etc...
+#Ideal result: "${OS_NAME}"
+#Detect the cleanest icon name
+BEST_INDEX=0
+BEST_SCORE=${#VALID_ICONS_PATH[0]}
+BEST_ICON=""
+for ((INDEX=0 ; INDEX < ${#VALID_ICONS_PATH[@]}; INDEX++)); do
+  RESULT=`basename ${VALID_ICONS_PATH[$INDEX]}`      # Remove path
+  RESULT=`echo ${RESULT} | cut -f 1 -d '.'`          # Remove extension
+  EXTRA_CHARS=${RESULT//$OS_NAME/}                   # Remove OS name
+  EXTRA_CHARS=${EXTRA_CHARS//"start-here"/}          # Remove all "start-here" occurrences (menu icon)
+  EXTRA_CHARS=${EXTRA_CHARS//"whiskermenu"/}         # Remove all "whiskermenu" occurrences (menu for whisker)
+  EXTRA_CHARS=${EXTRA_CHARS//"distributor"/}         # Remove all "distributor" occurrences
+  EXTRA_CHARS=${EXTRA_CHARS//"icon"/}                # Remove all "icon" occurrences
+  EXTRA_CHARS=${EXTRA_CHARS//"logo"/}                # Remove all "logo" occurrences
+  EXTRA_CHARS=${EXTRA_CHARS//"swirl"/}               # Remove all "swirl" occurrences (debian's logo)
+  EXTRA_CHARS=${EXTRA_CHARS//"-"/}                   # Remove all "-" occurrences
+  EXTRA_CHARS=${EXTRA_CHARS//"_"/}                   # Remove all "_" occurrences
+  DIRTY=${#EXTRA_CHARS}
+  if [[ $DIRTY -lt $BEST_SCORE ]]; then
+    BEST_SCORE=${DIRTY}
+    BEST_INDEX=${INDEX}
+    BEST_ICON="${RESULT}"
+  fi
+done
+zenity --info --ellipsize --window-icon="/usr/share/icons/gnome-colors-common/24x24/actions/gtk-about.png" --title="${TITLE}" --icon-name="${BEST_ICON}" --text="<span font_family=\"monospace\">${SYSINFO}</span>" 2>/dev/null
