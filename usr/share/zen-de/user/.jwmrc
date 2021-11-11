@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<JWM>
+  <!-- The root menu. -->
+  <RootMenu onroot="3" height="22">
+    <Include>exec:/usr/share/zen-de/jwm/MENU</Include>
+    <Separator/>
+    <Include>exec:/usr/share/zen-de/jwm/MENU_ZEN</Include>
+  </RootMenu>
+  
+  <!-- The calendar/clock menu. -->
+  <RootMenu onroot="0" height="22">
+    <Program icon="stock_calendar.png" label="Calendar">zen-calendar</Program>
+    <Program icon="clock.png" label="Clock">xclock-switch</Program>
+  </RootMenu>
+
+  <!-- Options for program groups. -->
+  <Group>
+    <Option>centered</Option>
+    <Option>aerosnap</Option>
+  </Group>
+  <Group>
+    <Name>xclock</Name>
+    <Option>drag</Option>
+    <Option>nolist</Option>
+  </Group>
+  <Group>
+    <Class>sakura</Class>
+    <Class>Sakura</Class>
+    <Class>x-terminal-emulator</Class>
+    <Class>X-terminal-emulator</Class>
+    <Option>opacity:1.0</Option>
+  </Group>
+
+  <!-- Tray at the bottom. -->
+  <Tray x="0" y="-1" height="25" autohide="off">
+    <TrayButton popup="Menu" icon="/usr/share/pixmaps/zen-logo_white.svg">root:3</TrayButton>
+    <Spacer width="2"/>
+    <TrayButton label="↓" popup="Hide all">showdesktop</TrayButton>
+    <Spacer width="2"/>
+    <Pager labeled="true"/>
+    <TaskList maxwidth="256"/>
+    <Dock/>
+    <Clock format="%d/%m/%Y %H:%M:%S">
+      <Button mask="1">root:0</Button>
+    </Clock>
+    <TrayButton popup="Logout" icon="system-shutdown">exec:zen-logout</TrayButton>
+    <!--Clock format="%d/%m/%Y %H:%M:%S"><Button mask="123">exec:zen-calendar</Button></Clock>
+    <TrayButton label="A">showdesktop</TrayButton>
+    <Spacer width="2"/>
+    <Clock format="%H:%M:%S"><Button mask="3">exec:xclock-switch</Button></Clock -->
+  </Tray>
+
+  <!-- Visual Styles -->
+  <WindowStyle decorations="flat">
+    <Font>Sans-9:bold</Font>
+    <Width>4</Width>
+    <Height>24</Height>
+    <Corner>0</Corner>
+    <Foreground>#888</Foreground>
+    <Background>#222D32</Background>
+    <Outline>#000000</Outline>
+    <Opacity>1.0</Opacity>
+    <Active>
+      <Foreground>#F7F7F2</Foreground>
+      <Background>#222D32</Background>
+      <Outline>#000000</Outline>
+      <Opacity>1.0</Opacity>
+    </Active>
+  </WindowStyle>
+  <TrayStyle group="false" list="desktop">
+    <Font>Sans-9</Font>
+    <Background>#222D32</Background>
+    <Foreground>#F7F7F2</Foreground>
+    <Outline>#282923</Outline>
+    <Opacity>1.0</Opacity>
+  </TrayStyle>
+  <PagerStyle>
+    <Outline>#222D32</Outline>
+    <Foreground>#555555</Foreground>
+    <Background>#282923</Background>
+    <Text>#F7F7F2</Text>
+    <Active>
+      <Foreground>#A6E32D</Foreground>
+      <Background>#524B3F</Background>
+    </Active>
+  </PagerStyle>
+  <MenuStyle>
+    <Font>Sans-9</Font>
+    <Foreground>#FFFFFF</Foreground>
+    <Background>#222D32</Background>
+    <Outline>#000000</Outline>
+    <Active>
+      <Foreground>#FFFFFF</Foreground>
+      <Background>#8fb858:#77974b</Background>
+    </Active>
+    <Opacity>1.0</Opacity>
+  </MenuStyle>
+  <PopupStyle>
+    <Font>Sans-9</Font>
+    <Foreground>#000000</Foreground>
+    <Background>#999999</Background>
+  </PopupStyle>
+
+  <!-- Path where icons can be found.
+       IconPath can be listed multiple times to allow searching
+       for icons in multiple paths. -->
+  <Include>exec:/usr/share/zen-de/jwm/DETECT_ICONS</Include>
+  <IconPath>/usr/share/pixmaps</IconPath>
+  <IconPath>/usr/local/share/jwm</IconPath>
+
+  <!-- Virtual Desktops -->
+  <!-- Desktop tags can be contained within Desktops for desktop names. -->
+  <Desktops width="4" height="1">
+    <!-- Default background. Note that a Background tag can be
+          contained within a Desktop tag to give a specific background
+          for that desktop.
+     -->
+    <Background type="command">zen-wallpaper --refresh</Background>
+  </Desktops>
+
+  <!-- Window icons -->
+  <DefaultIcon></DefaultIcon>
+  <ButtonMenu></ButtonMenu>
+  <ButtonMin></ButtonMin>
+  <ButtonMin></ButtonMin>
+  <ButtonMaxActive></ButtonMaxActive>
+  <ButtonClose></ButtonClose>
+
+  <!-- Double click speed (in milliseconds) -->
+  <DoubleClickSpeed>400</DoubleClickSpeed>
+
+  <!-- Double click delta (in pixels) -->
+  <DoubleClickDelta>2</DoubleClickDelta>
+
+  <!-- The focus model (sloppy or click) -->
+  <FocusModel>click</FocusModel>
+
+  <!-- The snap mode (none, screen, or border) -->
+  <SnapMode distance="10">border</SnapMode>
+
+  <!-- The move mode (outline or opaque) -->
+  <MoveMode mask="A" coordinates="off" delay="0">opaque</MoveMode>
+
+  <!-- The resize mode (outline or opaque) -->
+  <ResizeMode coordinates="window">opaque</ResizeMode>
+  <StartupCommand>fbautostart</StartupCommand>
+  
+  <!-- Key bindings -->
+  <Key key="Up">up</Key>
+  <Key key="Down">down</Key>
+  <Key key="Right">right</Key>
+  <Key key="Left">left</Key>
+  <Key key="h">left</Key>
+  <Key key="j">down</Key>
+  <Key key="k">up</Key>
+  <Key key="l">right</Key>
+  <Key key="Return">select</Key>
+  <Key key="Escape">escape</Key>
+  <Key key="Print">exec:zen-screenshot</Key>
+  <Key mask="S" key="Print">exec:zen-screenshot --gui</Key>
+
+  <Key mask="A" key="Tab">nextstacked</Key>
+  <Key mask="A" key="F4">close</Key>
+  <Key mask="A" key="#">desktop#</Key>
+  <Key mask="A" key="F1">root:3</Key>
+  <Include>exec:/usr/share/zen-de/jwm/KEY_ALT+F2</Include>
+  <Key mask="A" key="F3">window</Key>
+  <Key mask="A" key="F10">maximize</Key>
+  <Key mask="AC" key="Right">rdesktop</Key>
+  <Key mask="AC" key="Left">ldesktop</Key>
+  <Key mask="AC" key="Up">udesktop</Key>
+  <Key mask="AC" key="Down">ddesktop</Key>
+  <Key mask="ACS" key="Right">sendr</Key>
+  <Key mask="ACS" key="Left">sendl</Key>
+  <Key mask="ACS" key="Up">sendu</Key>
+  <Key mask="ACS" key="Down">sendd</Key>
+</JWM>
