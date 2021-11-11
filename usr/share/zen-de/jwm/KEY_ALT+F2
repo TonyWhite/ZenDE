@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "<JWM>"
+echo "<Key mask=\"A\" key=\"F2\">exec: grun</Key>"
+echo "</JWM>"
