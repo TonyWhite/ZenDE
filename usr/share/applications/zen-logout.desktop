@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Zen Logout
+Icon=system-shutdown
+Exec=zen-logout
+NoDisplay=false
+Categories=System;
+StartupNotify=false
+Terminal=false
