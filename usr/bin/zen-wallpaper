@@ -1,0 +1,225 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# feh
+# findutils (xargs)
+# neofetch
+# zenity
+
+PARAMS=($@)
+
+# Wallpaper Settings
+ZEN_WALLPAPER_CENTER="--bg-center"
+ZEN_WALLPAPER_FILL="--bg-fill"
+ZEN_WALLPAPER_MAX="--bg-max"
+ZEN_WALLPAPER_SCALE="--bg-scale"
+ZEN_WALLPAPER_TILE="--bg-tile"
+ZEN_WALLPAPER_IMAGE="/home/${USER}/.config/zen-de/wallpaper/current"
+ZEN_WALLPAPER_CONFIG="/home/${USER}/.config/zen-de/wallpaper/config"
+
+# User folder exists?
+if [[ ! -d "/home/${USER}" ]]; then
+  exit
+fi
+
+# wallpaper folder exists?
+if [[ ! -d "/home/${USER}/.config/zen-de/wallpaper" ]]; then
+  mkdir -p "/home/${USER}/.config/zen-de/wallpaper"
+fi
+
+if [[ ! -f "${ZEN_WALLPAPER_CONFIG}" ]]; then
+  cp "/usr/share/zen-de/wallpaper/config" "${ZEN_WALLPAPER_CONFIG}"
+fi
+
+if [[ ! -f "${ZEN_WALLPAPER_IMAGE}" ]]; then
+  cp "/usr/share/zen-de/wallpaper/current" "${ZEN_WALLPAPER_IMAGE}"
+fi
+
+source "${ZEN_WALLPAPER_CONFIG}"
+
+function main()
+{
+  case "${PARAMS[0]}" in
+    "--refresh")
+      refresh_wallpaper
+    ;;
+    
+    "--config")
+      config_wallpaper
+    ;;
+    "--help")
+      print_help
+    ;;
+    *)
+      main_gui
+    ;;
+  esac
+}
+
+function main_gui()
+{
+  ACTION=`zenity --title="TITOLO" --list --text="<b>Cosa vuoi fare?</b>" --column "" "coso 1" "coso 2" "coso 2" "coso 3" --hide-header`
+}
+
+function print_help()
+{
+  echo "zen-wallpaper (${VERSION} ${VERSION_NUM})"
+  echo "${NO_PARAMS}:"
+  echo "                      - ${SHOW_THIS_MESSAGE_IN_SHELL}"
+  echo "${YES_PARAMS}:"
+  echo "--help                - ${SHOW_THIS_MESSAGE_IN_SHELL}"
+  echo "--refresh             - ${REFRESH_CURRENT_WALLPAPER}"
+  echo ""
+  echo "${EXAMPLE}:"
+  echo "zen-wallpaper --refresh"
+}
+
+function refresh_wallpaper()
+{
+  feh --no-fehbg ${ZEN_WALLPAPER_SETTING} "${ZEN_WALLPAPER_IMAGE}"
+}
+
+function config_wallpaper()
+{
+  zenity --title="${TITLE}" --info --text="${CONFIGURE_WALLPAPER}"
+  #galternatives da terminale: elenca gli sfondi
+}
+
+function help_gui()
+{
+  MESSAGE="`print_help`"
+  zenity --info --ellipsize --title="${TITLE}" --text="<span font_family=\"monospace\">${MESSAGE}</span>"
+}
+
+# Search for icon path from current icon theme
+# Example:
+# get_icon_path "system-shutdown" "22"
+function get_icon_path()
+{
+  ICON_NAME=$1
+  ICON_SIZE=$2
+  OLD_IFS=$IFS
+  
+  # Detect icon theme
+  IFS=" "
+  FETCHINFO=(`neofetch --stdout | grep -m 1 -i "^Icons" | cut -f2 -d ':' | xargs | cut -f1 -d ' '`)
+  ICON_THEME_NAME=""
+  for ((INDEX=0 ; INDEX < ${#FETCHINFO[@]}; INDEX++)); do
+    if [[ ${#ICON_THEME_NAME} -gt 0 ]]; then
+      ICON_THEME_NAME+=" "
+    fi
+    ICON_THEME_NAME+="${FETCHINFO[$INDEX]}"
+  done
+  
+  # Detect iherits themes
+  VALID_ICONS_PATH=()                                        # Array of valid icons path
+  VALID_THEMES_FOLDERS=()                                    # Array of valid themes folders
+  VALID_THEMES_NAMES=("${ICON_THEME_NAME}")                  # Array of valid themes names
+  INDEX_VALID_THEMES_NAMES=0                                 # Index for VALID_THEMES_NAMES array
+  THEMES_FOLDERS=("/home/$USER/.icons/" "/usr/share/icons/") # Icon theme folders
+
+  while [ $INDEX_VALID_THEMES_NAMES -lt ${#VALID_THEMES_NAMES[@]} ]; do
+    for THEME_FOLDER in ${THEMES_FOLDERS[@]}; do
+      if [[ -d "${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}" ]]; then
+        VALID_THEMES_FOLDERS+=("${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}/")
+        
+        # Detect icon name in this theme
+        IFS=$'\n'
+        THEME_FOLDERS=(`ls -1 -R ${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]} | grep "/"`)
+        THEME_FOLDERS=("${THEME_FOLDERS[@]}")
+        for THEME_SUBFOLDER in ${THEME_FOLDERS[@]}; do
+          # Filter by size: exact or scalable
+          if [[ "${THEME_SUBFOLDER}" == *"${ICON_SIZE}x${ICON_SIZE}"* ]] || [[ "${THEME_SUBFOLDER}" == *"scalable"* ]]; then
+            THEME_SUBFOLDER=${THEME_SUBFOLDER::-1} # Remove last char ":"
+            THEME_ICONS=(`ls -1 ${THEME_SUBFOLDER}/*${ICON_NAME}* 2>/dev/null`)
+            if [[ "$?" != "0" ]]; then
+              THEME_ICONS=() # Add icons only if they exists
+            fi
+            VALID_ICONS_PATH+=(${THEME_ICONS[@]})
+          fi
+        done
+        
+        # Detect Inherits themes in index.theme
+        IFS="="
+        INHERITS_ROW=(`cat ${THEME_FOLDER}${VALID_THEMES_NAMES[${INDEX_VALID_THEMES_NAMES}]}/index.theme | grep -i "^Inherits"`)
+        IFS=$OLD_IFS
+        INHERITS_THEMES=(`echo ${INHERITS_ROW[1]} | tr ',' ' '`) # Look for the comma as delimiter
+        
+        # Add inherits themes to VALID_THEMES_NAMES
+        for INHERITS_THEME in ${INHERITS_THEMES[@]}; do
+          NEW_THEME=true
+          for VALID_THEME_NAME in ${VALID_THEMES_NAMES[@]}; do
+            if [[ "${INHERITS_THEME}" == "${VALID_THEME_NAME}" ]]; then
+              NEW_THEME=false
+            fi
+          done
+          if [[ $NEW_THEME == true ]]; then
+            VALID_THEMES_NAMES+=("${INHERITS_THEME}")
+          fi
+        done
+      fi
+    done
+    INDEX_VALID_THEMES_NAMES=$((INDEX_VALID_THEMES_NAMES+1))
+  done
+  
+  # Search icon in fallback paths
+  IFS=$RETURN
+  SHARE_ICONS=(`ls -1 /usr/share/icons/* | grep -i "${ICON_NAME}"`)
+  SHARE_PIXMAPS=(`ls -1 /usr/share/pixmaps/* | grep -i "${ICON_NAME}"`)
+  IFS=$OLD_IFS
+  VALID_ICONS_PATH+=(${SHARE_ICONS[@]})
+  VALID_ICONS_PATH+=(${SHARE_PIXMAPS[@]})
+  
+  # Scan valid paths to retrieve icon
+  BEST_INDEX=0
+  BEST_SCORE=${#VALID_ICONS_PATH[0]}
+  BEST_ICON=""
+  for ((INDEX=0 ; INDEX < ${#VALID_ICONS_PATH[@]}; INDEX++)); do
+    # File must be an image
+    if [[ "`xdg-mime query filetype ${VALID_ICONS_PATH[$INDEX]} | grep "^image" -c`" == "1" ]]; then
+      RESULT=`basename ${VALID_ICONS_PATH[$INDEX]}`      # Remove path
+      RESULT=`echo ${RESULT} | cut -f 1 -d '.'`          # Remove extension
+      EXTRA_CHARS=${RESULT//$ICON_NAME/}                 # Remove icon name
+      DIRTY=${#EXTRA_CHARS}
+      if [[ $DIRTY -lt $BEST_SCORE ]]; then
+        BEST_SCORE=${DIRTY}
+        BEST_INDEX=${INDEX}
+        BEST_ICON="${RESULT}"
+        if [[ $DIRTY == 0 ]]; then
+          break
+        fi
+      fi
+    fi
+  done
+  echo "${VALID_ICONS_PATH[$BEST_INDEX]}"
+}
+
+# Default language: en_US
+TITLE="Zen Wallpaper"
+VERSION="Version"
+VERSION_NUM="alpha"
+NO_PARAMS="No parameters"
+YES_PARAMS="Parameters"
+EXAMPLE="Example"
+SHOW_THIS_MESSAGE_IN_SHELL="Show this message in shell"
+SHOW_THIS_MESSAGE_IN_GUI="Show this message in GUI"
+REFRESH_CURRENT_WALLPAPER="Refresh current wallpaper"
+CONFIGURE_WALLPAPER="Configure wallpaper"
+
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d ' ' | cut -f1 -d '.'`" in
+  "it_IT")
+    TITLE="Zen Wallpaper"
+    VERSION="Versione"
+    VERSION_NUM="alpha"
+    NO_PARAMS="Nessun parametro"
+    YES_PARAMS="Parametri"
+    EXAMPLE="Esempio"
+    SHOW_THIS_MESSAGE_IN_SHELL="Mostra questo messaggio nel terminale"
+    SHOW_THIS_MESSAGE_IN_GUI="Mostra questo messaggio in una GUI"
+    REFRESH_CURRENT_WALLPAPER="Ricarica lo sfondo"
+    CONFIGURE_WALLPAPER="Configura lo sfondo"
+    ;;
+esac
+
+main
