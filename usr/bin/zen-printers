@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Open CUPS interface in default browser
+
+# DEPENDENCIES
+# cups
+# xdg-utils
+
+xdg-open "http://localhost:631/"
