@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Zen
+Comment=Minimalistic Zenity based Desktop Manager
+Type=Application
+Terminal=False
+Exec=/usr/bin/zen-session
+TryExec=zen-session
+Icon=zen-logo
+Keywords=X11;
+
+[Window Manager]
+SessionManaged=true
