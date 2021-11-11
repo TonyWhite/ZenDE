@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Zen SSHFS
+Icon=folder-remote
+Exec=zen-sshfs
+NoDisplay=false
+Categories=Network;
+StartupNotify=false
+Terminal=false
