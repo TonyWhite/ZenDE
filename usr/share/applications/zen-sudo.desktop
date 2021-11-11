@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Root Terminal
+Name[it]=Terminale root
+Icon=gksu-root-terminal
+Exec=zen-sudo x-terminal-emulator
+NoDisplay=false
+Categories=System;
+StartupNotify=false
+Terminal=false
