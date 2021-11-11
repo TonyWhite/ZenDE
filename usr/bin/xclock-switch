@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# xclock
+
+XCLOCKS="`pidof xclock`"
+if [[ ${#XCLOCKS} == 0 ]]; then
+  xclock
+else
+  killall xclock
+fi
