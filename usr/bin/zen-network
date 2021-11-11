@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# zenity
+# connman
+
+zenity --question --ellipsize --title="STUB" --text="Zenity frontend for connman?" --ok-label="Sure?" --cancel-label="Maybe..."
