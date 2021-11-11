@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Bastard Messages
+Name[it]=Messaggi Bastardi
+Icon=face-laugh
+Exec=zen-bastard-messages
+NoDisplay=false
+Categories=Game;
+StartupNotify=false
+Terminal=false
