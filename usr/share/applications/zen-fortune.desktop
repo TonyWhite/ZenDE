@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Quotes
+Name[it]=Citazioni
+Icon=text-x-authors
+Exec=zen-fortune
+Categories=Game;
+StartupNotify=false
+Terminal=false
