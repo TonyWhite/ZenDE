@@ -4,6 +4,6 @@ Name=Zen Printers
 Icon=printer
 Exec=zen-printers
 NoDisplay=false
-Categories=preferences-desktop;
+Categories=Printing;
 StartupNotify=false
 Terminal=false
