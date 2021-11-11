@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Zen Printers
+Icon=printer
+Exec=zen-printers
+NoDisplay=false
+Categories=preferences-desktop;
+StartupNotify=false
+Terminal=false
