@@ -1,0 +1,158 @@
+#!/bin/bash
+OLD_IFS=$IFS
+RETURN=$'\n'
+FALLBACK_ICON_THEME="hicolor" # freedesktop.org fallback icon theme
+
+# Standard icon names
+# https://specifications.freedesktop.org/icon-naming-spec/latest/ar01s04.html
+
+function main()
+{
+  IFS=$RETURN
+  ICON_THEME=`get_icon_theme_name`
+  ICON_THEMES=(`get_inherits_icon_themes "${ICON_THEME}"`)
+  ICON_THEMES_FOLDERS=()
+  
+  # Print XML for JWM
+  echo "<JWM>"
+  for THEME_NAME in ${ICON_THEMES[@]}; do
+    # Read icon list
+    ICON_THEMES_FOLDERS=(`get_folders_from_icon_theme "${THEME_NAME}"`)
+    # Read icon theme folders
+    for ITEM in ${ICON_THEMES_FOLDERS[@]}; do
+      echo "<IconPath>${ITEM}</IconPath>"
+    done
+  done
+  echo "</JWM>"
+}
+
+function get_icon_theme_name()
+{
+  # Launch neofetch with many voices disables & read only icon's row
+  ICON_THEME_NAME="`neofetch --stdout --disable os host kernel uptime packages shell resolution wm terminal cpu gpu memory --gtk_shorthand on | grep -i 'icons:'`"
+  
+  # Can't reach theme name?
+  if [[ "${#ICON_THEME_NAME}" == "0" ]]; then
+    # Repeat neofetch without voices disabled
+    ICON_THEME_NAME="`neofetch --stdout --gtk_shorthand on | grep -i 'icons'`"
+  fi
+  
+  # Remove: title, leading spaces and trailing spaces
+  ICON_THEME_NAME=`echo ${ICON_THEME_NAME} | cut -f2 -d ':' | sed -e 's/^[[:space:]]*//' | sed -e 's/[[:space:]]*$//'`
+  
+  # Can't find any icon?
+  if [[ "${#ICON_THEME_NAME}" == "0" ]]; then
+    # get fallback theme!
+    ICON_THEME_NAME="${FALLBACK_ICON_THEME}"
+  fi
+  
+  # return icon theme name
+  echo "${ICON_THEME_NAME}"
+}
+
+# Detect inherits icon themes.
+# $1 theme name: search inherits themes from it
+# return: valid paths separated by $RETURN
+function get_inherits_icon_themes()
+{
+  FALLBACK_ICON_THEME_USED=false                             # Become true if fallback theme is in inherits icon themes
+  VALID_THEMES_FOLDERS=()                                    # Array of valid themes folders
+  VALID_THEMES_NAMES=("$1")                                  # Array of valid themes names
+  echo "${VALID_THEMES_NAMES[0]}"
+  INDEX_VALID_THEMES_NAMES=0                                 # Index for VALID_THEMES_NAMES array
+  THEMES_FOLDERS=("/home/$USER/.icons/" "/usr/share/icons/") # Search themes in these folders
+  
+  while [ $INDEX_VALID_THEMES_NAMES -lt ${#VALID_THEMES_NAMES[@]} ]; do
+    for THEME_FOLDER in ${THEMES_FOLDERS[@]}; do
+      if [[ -d "${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}" ]]; then
+        VALID_THEME_FOLDER="${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}/"
+        VALID_THEMES_FOLDERS+=("${VALID_THEME_FOLDER}")
+        
+        # Detect Inherits themes in index.theme
+        IFS="="
+        INHERITS_ROW=(`cat ${VALID_THEME_FOLDER}/index.theme | grep -i "^Inherits"`)
+        IFS=$OLD_IFS
+        INHERITS_THEMES=(`echo ${INHERITS_ROW[1]} | tr ',' ' '`) # Look for the comma as delimiter
+        
+        # Add inherits themes to VALID_THEMES_NAMES
+        for INHERITS_THEME in ${INHERITS_THEMES[@]}; do
+          NEW_THEME=true
+          for VALID_THEME_NAME in ${VALID_THEMES_NAMES[@]}; do
+            if [[ "${INHERITS_THEME}" == "${VALID_THEME_NAME}" ]]; then
+              NEW_THEME=false # Add theme if not added yet
+            fi
+          done
+          if [[ $NEW_THEME == true ]]; then
+            VALID_THEMES_NAMES+=("${INHERITS_THEME}")
+            echo "${INHERITS_THEME}"
+            
+            # New theme is fallback theme?
+            if [[ "${INHERITS_THEME}" == "${FALLBACK_ICON_THEME}" ]]; then
+              FALLBACK_ICON_THEME_USED=true
+            fi
+          fi
+        done
+      fi
+    done
+    INDEX_VALID_THEMES_NAMES=$((INDEX_VALID_THEMES_NAMES+1))
+  done
+  
+  # Add fallback theme
+  if [[ ${FALLBACK_ICON_THEME_USED} == false ]]; then
+    echo "${FALLBACK_ICON_THEME}"
+  fi
+}
+
+# Get folders list from icon theme
+# $1 theme name: search inherits themes from it
+# return: folders from bigger to smaller icons
+function get_folders_from_icon_theme()
+{
+  # Theme is in /home or /usr/share?
+  THEME_NAME="$1"
+  THEME_FOLDER=""
+  USER_THEME="/home/$USER/.icons/${THEME_NAME}"
+  ROOT_THEME="/usr/share/icons/${THEME_NAME}"
+  if [[ -d "${USER_THEME}" ]]; then
+    THEME_FOLDER="${USER_THEME}"
+  elif [[ -d "${ROOT_THEME}" ]]; then
+    THEME_FOLDER="${ROOT_THEME}"
+  fi
+  
+  # If theme exists, continue. Otherwise do nothing.
+  if [[ "${#THEME_FOLDER}" != "0" ]]; then
+    
+    # Get theme folders
+    IFS=$RETURN
+    RAW_LIST=(`find "${THEME_FOLDER}" -mindepth 2 -maxdepth 2 -type d`)
+    
+    # Apply temporary mark to identify icons dimension
+    MARKED_LIST=()
+    for (( I=0; I<${#RAW_LIST[@]}; I++ )); do
+      IFS='/'
+      TMP=(${RAW_LIST[$I]:$[${#THEME_FOLDER}+1]})
+      
+      IFS=$RETURN
+      MARK=""
+      if [[ "${TMP[0]}" == "scalable" ]] || [[ "${TMP[1]}" == "scalable" ]]; then
+        MARK="scalable"
+      elif [[ "${TMP[0]}" == *"x"* ]]; then
+        MARK="`echo ${TMP[0]} | cut -f1 -d 'x'`"
+      elif [[ "${TMP[1]}" == *"x"* ]]; then
+        MARK="`echo ${TMP[1]} | cut -f1 -d 'x'`"
+      fi
+      
+      if [[ "${#MARK}" -lt "8" ]]; then
+        MARK="00000000${MARK}"
+        MARK=${MARK: -8}
+      fi
+      MARKED_LIST+=("${MARK}:${RAW_LIST[$I]}")
+    done
+    
+    # Sort marked folders
+    IFS=$RETURN
+    (sort -r <<<${MARKED_LIST[*]}) | cut -f2 -d ':'
+  fi
+}
+
+main
