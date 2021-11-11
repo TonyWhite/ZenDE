@@ -1,0 +1,546 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# findutils (xargs)
+# neofetch
+# zenity
+# any polkit
+
+# FEATURES
+# Manage SSHFS connections
+# Works like ssh-askpass with zenity GUI
+# zeroconfig: only 1 script for auto-configure & auto-execute
+# It is DE agnostic!
+
+VERSION_NUM="RC" # Don't translate!
+
+# Default language: en_US
+TITLE="Zen SSHFS"
+VERSION="Version"
+NO_PARAMS="No parameters"
+YES_PARAMS="Parameters"
+EXAMPLE="Example"
+START_GUI="Start with GUI"
+SHOW_THIS_MESSAGE="Show this message"
+DESCRIPTION="Manage remote filesystems from SecureShell"
+WHAT_TO_DO="What do you want to do?"
+LABEL_MOUNT="Mount remote folder"
+LABEL_UNMOUNT="Unmount remote folder"
+LABEL_CHECK="Check if local folder is SSHFS mountpoint"
+LABEL_SWITCH="Switch mount/unmount remote folder"
+LABEL_SELECT="Select"
+LABEL_USERNAME="Username"
+LABEL_REMOTE_IP="Remote IP address"
+LABEL_REMOTE_PORT="Remote port"
+LABEL_REMOTE_FOLDER="Remote folder"
+LABEL_LOCAL_FOLDER="Local folder"
+INFO_MANDATORY_PARAMS="Mandatory parameters are indicated with an asterisk*"
+INFO_CONNECTION_OK="Connection SSH established"
+INFO_CONNECTION_KO="Connection error"
+INFO_NO_CONNECTIONS="There are no SSHFS connections"
+QUESTION_DISCONNECT="Do you want to close this connection?"
+INFO_DISCONNECTION_OK="Connection SSH closed"
+INFO_DISCONNECTION_KO="Error SSH closing"
+ERROR_ARGUMENTS="Bad arguments"
+QUIT="Exit"
+
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d ' ' | cut -f1 -d '.'`" in
+  "it_IT")
+    TITLE="Zen SSHFS"
+    VERSION="Versione"
+    NO_PARAMS="Nessun parametro"
+    YES_PARAMS="Parametri"
+    EXAMPLE="Esempio"
+    START_GUI="Avvia con l'interfaccia grafica"
+    SHOW_THIS_MESSAGE="Mostra questo messaggio"
+    DESCRIPTION="Gestisce filesystem remoti attraverso SecureShell"
+    WHAT_TO_DO="Cosa vuoi fare?"
+    LABEL_MOUNT="Monta una cartella remota"
+    LABEL_UNMOUNT="Smonta una cartella remota"
+    LABEL_CHECK="Controlla se la cartella locale è un punto di mount SSHFS"
+    LABEL_SWITCH="Monta/smonta una cartella remota"
+    LABEL_SELECT="Seleziona"
+    LABEL_USERNAME="Nome utente"
+    LABEL_REMOTE_IP="Indirizzo IP remoto"
+    LABEL_REMOTE_PORT="Porta remota"
+    LABEL_REMOTE_FOLDER="Cartella remota"
+    LABEL_LOCAL_FOLDER="Cartella locale"
+    INFO_MANDATORY_PARAMS="I parametri obbligatori sono indicati con un asterisco*"
+    INFO_CONNECTION_OK="Connessione SSH stabilita"
+    INFO_CONNECTION_KO="Errore di connessione"
+    INFO_NO_CONNECTIONS="Non esistono connessioni SSHFS"
+    QUESTION_DISCONNECT="Vuoi chiudere questa connessione?"
+    INFO_DISCONNECTION_OK="Connessione SSH chiusa"
+    INFO_DISCONNECTION_KO="Chiusura della connessione SSH"
+    ERROR_ARGUMENTS="Parametri sbagliati"
+    QUIT="Esci"
+    ;;
+esac
+
+ARGS=("$@") # Preserve spaces
+MAIN_ICON=""
+WARNING_ICON=""
+
+function main()
+{
+  if [[ "${#ARGS[@]}" -gt 0 ]]; then
+    manage_arguments
+  else
+    start_gui
+  fi
+}
+
+function manage_arguments()
+{
+  # Search for arguments
+  ARG_MOUNT=false
+  ARG_UNMOUNT=false
+  ARG_CHECK=false
+  ARG_SWITCH=false
+  ARG_USER=""
+  ARG_IP=""
+  ARG_PORT=""
+  ARG_REMOTE_FOLDER=""
+  ARG_LOCAL_FOLDER=""
+  
+  INDEX=0
+  for ITEM in "${ARGS[@]}"; do
+    case "${ITEM}" in
+      "--help")
+      show_help
+      quit
+      ;;
+      
+      "--mount")
+      ARG_MOUNT=true
+      ;;
+      
+      "--unmount")
+      ARG_UNMOUNT=true
+      ;;
+      
+      "--check")
+      ARG_CHECK=true
+      ;;
+      
+      "--switch")
+      ARG_SWITCH=true
+      ;;
+      
+      "--user="*)
+      ARG_USER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ;;
+      
+      "--ip="*)
+      ARG_IP="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ;;
+      
+      "--port="*)
+      ARG_PORT="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ;;
+      
+      "--remotefolder="*)
+      ARG_REMOTE_FOLDER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ;;
+      
+      "--localfolder="*)
+      ARG_LOCAL_FOLDER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ;;
+    esac
+    INDEX=$[$INDEX+1]
+  done
+  
+  # Set default values
+  if [[ "${ARG_PORT}" == "" ]]; then ARG_PORT="22"; fi
+  if [[ "${ARG_REMOTE_FOLDER}" == "" ]]; then ARG_REMOTE_FOLDER="/${ARG_USER}"; fi
+  
+  # check mountpoint
+  if [[ "${ARG_CHECK}" == "true" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "false" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
+    check_sshfs "${ARG_LOCAL_FOLDER}"
+  
+  # mount folder
+  elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "true" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "false" && "${ARG_USER}" != "" && "${ARG_IP}" != "" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
+    export SSH_ASKPASS="$(realpath "$0")"
+    sshfs ${ARG_USER}@${ARG_IP}:"${ARG_REMOTE_FOLDER}" "${ARG_LOCAL_FOLDER}" -p ${ARG_PORT}
+  
+  # unmount folder
+  elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "true" && "${ARG_SWITCH}" == "false" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
+    pkexec umount "${ARG_LOCAL_FOLDER}"
+  
+  # switch mount/unmount remote folder
+  elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "true" && "${ARG_USER}" != "" && "${ARG_IP}" != "" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
+    if [[ "`check_sshfs "${ARG_LOCAL_FOLDER}"`" == "true" ]]; then
+      # unmount folder
+      pkexec umount "${ARG_LOCAL_FOLDER}"
+    else
+      # mount folder
+      export SSH_ASKPASS="$(realpath "$0")"
+      sshfs ${ARG_USER}@${ARG_IP}:"${ARG_REMOTE_FOLDER}" "${ARG_LOCAL_FOLDER}" -p ${ARG_PORT}
+    fi
+  
+  # If bad arguments
+  else
+    echo "${ERROR_ARGUMENTS}"
+    show_help
+    quit
+  fi
+}
+
+function start_gui()
+{
+  MAIN_ICON=$(get_icon_path "folder-remote" "scalable")
+  while true; do
+    ACTION=$(zenity --window-icon="${MAIN_ICON}" \
+                    --title="${TITLE}" \
+                    --list \
+                    --text="<b>${WHAT_TO_DO}</b>" \
+                    --column "" "${LABEL_MOUNT}" "${LABEL_UNMOUNT}" \
+                    --hide-header \
+                    --cancel-label="${QUIT}")
+    FORCED=$?
+    case "${ACTION}" in
+      "${LABEL_MOUNT}")
+      mount_sshfs
+      ;;
+
+      "${LABEL_UNMOUNT}")
+      unmount_sshfs
+      ;;
+      
+      *)
+      if [[ "${FORCED}" == "1" ]]; then
+        quit
+      fi
+      ;;
+    esac
+  done
+}
+
+function mount_sshfs()
+{
+  SEPARATOR=$'\n'
+  ACTION=$(zenity --forms \
+                  --window-icon="${MAIN_ICON}" \
+                  --title="${TITLE}" \
+                  --text="${LABEL_MOUNT}" \
+                  --separator="${SEPARATOR}" \
+                  --add-entry="${LABEL_USERNAME}*" \
+                  --add-entry="${LABEL_REMOTE_IP}*" \
+                  --add-entry="${LABEL_REMOTE_PORT}" \
+                  --add-entry="${LABEL_REMOTE_FOLDER}" \
+                  --add-entry="${LABEL_LOCAL_FOLDER}*")
+  
+  if [[ "$?" == "0" ]]; then # Read input only if OK
+    # Remove all adjacent separators
+    while true; do
+      STR_LEN=${#ACTION}
+      ACTION=${ACTION//${SEPARATOR}${SEPARATOR}/${SEPARATOR} ${SEPARATOR}}
+      if [[ $STR_LEN == ${#ACTION} ]]; then
+        break
+      fi
+    done
+    # Convert ACTION to array
+    OLD_IFS=$IFS
+    IFS=${SEPARATOR}
+    ACTION=(${ACTION})
+    IFS=$OLD_IFS
+    # Read array items
+    USERNAME="${ACTION[0]}"
+    REMOTE_IP="${ACTION[1]}"
+    REMOTE_PORT="${ACTION[2]}"
+    REMOTE_FOLDER="${ACTION[3]}"
+    LOCAL_FOLDER="${ACTION[4]}"
+    
+    CORRECT_INPUTS=true
+    if [[ "${USERNAME}" == " " ]]; then
+      CORRECT_INPUTS=false
+    else
+      if [[ ${USERNAME} == *" "* ]]; then # String contains space?
+        CORRECT_INPUTS=false
+      fi
+    fi
+    if [[ "${REMOTE_IP}" == " " ]]; then
+      CORRECT_INPUTS=false
+    else
+      ping -c 1 ${REMOTE_IP} # Host exists?
+      if [[ "$?" != "0" ]]; then
+        CORRECT_INPUTS=false
+      fi
+    fi
+    if [[ "${REMOTE_PORT}" == " " ]]; then
+      REMOTE_PORT="22"
+    fi
+    if [[ "${REMOTE_FOLDER}" == " " ]]; then
+      REMOTE_FOLDER="/"
+    fi
+    if [[ "${LOCAL_FOLDER}" == " " ]]; then
+      CORRECT_INPUTS=false
+    fi
+    
+    if [[ ${CORRECT_INPUTS} == false ]]; then
+      zenity --warning \
+             --window-icon="${MAIN_ICON}" \
+             --ellipsize \
+             --title="${TITLE}" \
+             --text="${INFO_MANDATORY_PARAMS}"
+    else
+      export SSH_ASKPASS="$(realpath "$0")"
+      sshfs ${USERNAME}@${REMOTE_IP}:"${REMOTE_FOLDER}" "${LOCAL_FOLDER}" -p ${REMOTE_PORT}
+      if [[ "$?" == "0" ]]; then
+        zenity --notification \
+               --window-icon="${MAIN_ICON}" \
+               --text="${INFO_CONNECTION_OK}\n${LOCAL_FOLDER}"
+      else
+        zenity --notification \
+               --window-icon="error" \
+               --text="${INFO_CONNECTION_KO}\n${USERNAME}@${REMOTE_IP}:${REMOTE_PORT}\n${REMOTE_FOLDER}"
+      fi
+    fi
+  fi
+  
+}
+
+function unmount_sshfs()
+{
+  # Read SSHFS connections from mtab
+  OLD_IFS=$IFS
+  IFS=$'\n'
+  MTAB_CONNECTIONS=(`cat /etc/mtab | grep -i "sshfs"`)
+  
+  # Put SSHFS info in arrays
+  USERNAME=()
+  REMOTE_IP=()
+  REMOTE_FOLDER=()
+  LOCAL_FOLDER=()
+  ZENITY_TABLE=()
+  INDEX="0"
+  for ITEM in "${MTAB_CONNECTIONS[@]}"; do
+    IFS=$OLD_IFS
+    ITEM=($ITEM)
+    USERNAME+=("`echo ${ITEM[0]} | cut -f 1 -d '@'`")
+    REMOTE_IP+=("`echo ${ITEM[0]} | cut -f 2 -d '@' | cut -f 1 -d ':'`")
+    REMOTE_FOLDER+=("`printf ${ITEM[0]} | cut -f 2 -d ':'`")
+    LOCAL_FOLDER+=("`printf ${ITEM[1]}`")
+    DEFAULT_SELECT="FALSE"
+    if [[ "$INDEX" == "0" ]]; then
+      DEFAULT_SELECT="TRUE"
+    fi
+    ZENITY_TABLE+=("${DEFAULT_SELECT}" "${INDEX}" "${USERNAME[${INDEX}]}" "${REMOTE_IP[${INDEX}]}" "${REMOTE_FOLDER[${INDEX}]}" "${LOCAL_FOLDER[${INDEX}]}")
+    INDEX=$[$INDEX+1]
+  done
+  
+  # Show SSHFS connections
+  if [[ "${INDEX}" == "0" ]]; then
+    zenity --info \
+           --ellipsize \
+           --window-icon="${MAIN_ICON}" \
+           --title="${TITLE}" \
+           --text="${INFO_NO_CONNECTIONS}"
+  else
+    SCREEN_WIDTH=$(xwininfo -root | awk '$1=="Width:" {print $2}')
+    SCREEN_HEIGHT=$(xwininfo -root | awk '$1=="Height:" {print $2}')
+    SELECTED=$(zenity --list \
+                      --radiolist \
+                      --window-icon="${MAIN_ICON}" \
+                      --title="${TITLE}" \
+                      --text "<b>${LABEL_UNMOUNT}:</b>" \
+                      --column "${LABEL_SELECT}" \
+                      --column "INDEX" \
+                      --column "${LABEL_USERNAME}" \
+                      --column "${LABEL_REMOTE_IP}" \
+                      --column "${LABEL_REMOTE_FOLDER}" \
+                      --column "${LABEL_LOCAL_FOLDER}" \
+                      "${ZENITY_TABLE[@]}" \
+                      --hide-column=2 \
+                      --width=$(( $SCREEN_WIDTH / 3 )) \
+                      --height=$(( $SCREEN_HEIGHT / 3 )) )
+    if [[ "$?" == "0" ]]; then
+      zenity --question \
+             --ellipsize \
+             --window-icon="${MAIN_ICON}" \
+             --title="${TITLE}" \
+             --text="<b>${QUESTION_DISCONNECT}</b>\
+             \n\n${LABEL_USERNAME}: ${USERNAME[${SELECTED}]}\
+             \n${LABEL_REMOTE_IP}: ${REMOTE_IP[${SELECTED}]}\
+             \n${LABEL_REMOTE_FOLDER}: ${REMOTE_FOLDER[${SELECTED}]}\
+             \n${LABEL_LOCAL_FOLDER}: ${LOCAL_FOLDER[${SELECTED}]}"
+      if [[ "$?" == "0" ]]; then
+        pkexec umount "${LOCAL_FOLDER[${SELECTED}]}"
+        if [[ `check_sshfs "${LOCAL_FOLDER[${SELECTED}]}"` == true ]]; then
+          zenity --notification \
+                 --window-icon="error" \
+                 --text="${INFO_DISCONNECTION_KO}\n${LOCAL_FOLDER[${SELECTED}]}"
+        else
+          zenity --notification \
+                 --window-icon="${MAIN_ICON}" \
+                 --text="${INFO_DISCONNECTION_OK}\n${LOCAL_FOLDER[${SELECTED}]}"
+        fi
+      fi
+    fi
+  fi
+}
+
+function check_sshfs()
+{
+  CHECK_THIS_FOLDER="$1"
+  
+  # Read SSHFS connections from mtab
+  OLD_IFS=$IFS
+  IFS=$'\n'
+  MTAB_CONNECTIONS=(`cat /etc/mtab | grep -i "sshfs"`)
+  
+  CONNECTION_EXISTS=false
+  for ITEM in "${MTAB_CONNECTIONS[@]}"; do
+    IFS=$OLD_IFS
+    ITEM=($ITEM)
+    LOCAL_FOLDER=("`printf ${ITEM[1]}`")
+    if [[ "${LOCAL_FOLDER}" == "${CHECK_THIS_FOLDER}" ]]; then
+      CONNECTION_EXISTS=true
+      break
+    fi
+  done
+  echo ${CONNECTION_EXISTS}
+}
+
+function show_help()
+{
+  echo "zen-sshfs (${VERSION} ${VERSION_NUM})"
+  echo "${NO_PARAMS}:"
+  echo "                        - ${START_GUI}"
+  echo "${YES_PARAMS}:"
+  echo "--help                  - ${SHOW_THIS_MESSAGE}"
+  echo "--mount                 - ${LABEL_MOUNT}"
+  echo "--unmount               - ${LABEL_UNMOUNT}"
+  echo "--check                 - ${LABEL_CHECK}"
+  echo "--switch                - ${LABEL_SWITCH}"
+  echo "--user=USER             - ${LABEL_USERNAME}"
+  echo "--ip=IP                 - ${LABEL_REMOTE_IP}"
+  echo "--port=PORT             - ${LABEL_REMOTE_PORT}"
+  echo "--remotefolder=PATH     - ${LABEL_REMOTE_FOLDER}"
+  echo "--localfolder=PATH      - ${LABEL_LOCAL_FOLDER}"
+  echo ""
+  echo "${EXAMPLE}:"
+  echo "zen-sshfs --mount --user=jack --ip=127.0.0.1 --remotefolder=\"/home/jack/Documents/\" --localfolder=\"/tmp/mylocalfolder\""
+}
+
+function quit()
+{
+  true
+  exit
+}
+
+#!/bin/bash
+# Search for icon path from current icon theme
+# Example:
+# get_icon_path "system-shutdown" "22"
+function get_icon_path()
+{
+  ICON_NAME=$1
+  ICON_SIZE=$2
+  OLD_IFS=$IFS
+  
+  # Detect icon theme
+  IFS=" "
+  FETCHINFO=(`neofetch --stdout | grep -m 1 -i "^Icons" | cut -f2 -d ':' | xargs | cut -f1 -d ' '`)
+  ICON_THEME_NAME=""
+  for ((INDEX=0 ; INDEX < ${#FETCHINFO[@]}; INDEX++)); do
+    if [[ ${#ICON_THEME_NAME} -gt 0 ]]; then
+      ICON_THEME_NAME+=" "
+    fi
+    ICON_THEME_NAME+="${FETCHINFO[$INDEX]}"
+  done
+  
+  # Detect iherits themes
+  VALID_ICONS_PATH=()                                        # Array of valid icons path
+  VALID_THEMES_FOLDERS=()                                    # Array of valid themes folders
+  VALID_THEMES_NAMES=("${ICON_THEME_NAME}")                  # Array of valid themes names
+  INDEX_VALID_THEMES_NAMES=0                                 # Index for VALID_THEMES_NAMES array
+  THEMES_FOLDERS=("/home/$USER/.icons/" "/usr/share/icons/") # Icon theme folders
+
+  while [ $INDEX_VALID_THEMES_NAMES -lt ${#VALID_THEMES_NAMES[@]} ]; do
+    for THEME_FOLDER in ${THEMES_FOLDERS[@]}; do
+      if [[ -d "${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}" ]]; then
+        VALID_THEMES_FOLDERS+=("${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]}/")
+        
+        # Detect icon name in this theme
+        IFS=$'\n'
+        THEME_FOLDERS=(`ls -1 -R ${THEME_FOLDER}${VALID_THEMES_NAMES[$INDEX_VALID_THEMES_NAMES]} | grep "/"`)
+        THEME_FOLDERS=("${THEME_FOLDERS[@]}")
+        for THEME_SUBFOLDER in ${THEME_FOLDERS[@]}; do
+          # Filter by size: exact or scalable
+          if [[ "${THEME_SUBFOLDER}" == *"${ICON_SIZE}x${ICON_SIZE}"* ]] || [[ "${THEME_SUBFOLDER}" == *"scalable"* ]]; then
+            THEME_SUBFOLDER=${THEME_SUBFOLDER::-1} # Remove last char ":"
+            THEME_ICONS=(`ls -1 ${THEME_SUBFOLDER}/*${ICON_NAME}* 2>/dev/null`)
+            if [[ "$?" != "0" ]]; then
+              THEME_ICONS=() # Add icons only if they exists
+            fi
+            VALID_ICONS_PATH+=(${THEME_ICONS[@]})
+          fi
+        done
+        
+        # Detect Inherits themes in index.theme
+        IFS="="
+        INHERITS_ROW=(`cat ${THEME_FOLDER}${VALID_THEMES_NAMES[${INDEX_VALID_THEMES_NAMES}]}/index.theme | grep -i "^Inherits"`)
+        IFS=$OLD_IFS
+        INHERITS_THEMES=(`echo ${INHERITS_ROW[1]} | tr ',' ' '`) # Look for the comma as delimiter
+        
+        # Add inherits themes to VALID_THEMES_NAMES
+        for INHERITS_THEME in ${INHERITS_THEMES[@]}; do
+          NEW_THEME=true
+          for VALID_THEME_NAME in ${VALID_THEMES_NAMES[@]}; do
+            if [[ "${INHERITS_THEME}" == "${VALID_THEME_NAME}" ]]; then
+              NEW_THEME=false
+            fi
+          done
+          if [[ $NEW_THEME == true ]]; then
+            VALID_THEMES_NAMES+=("${INHERITS_THEME}")
+          fi
+        done
+      fi
+    done
+    INDEX_VALID_THEMES_NAMES=$((INDEX_VALID_THEMES_NAMES+1))
+  done
+  
+  # Search icon in fallback paths
+  IFS=$RETURN
+  SHARE_ICONS=(`ls -1 /usr/share/icons/* | grep -i "${ICON_NAME}"`)
+  SHARE_PIXMAPS=(`ls -1 /usr/share/pixmaps/* | grep -i "${ICON_NAME}"`)
+  IFS=$OLD_IFS
+  VALID_ICONS_PATH+=(${SHARE_ICONS[@]})
+  VALID_ICONS_PATH+=(${SHARE_PIXMAPS[@]})
+  
+  # Scan valid paths to retrieve icon
+  BEST_INDEX=0
+  BEST_SCORE=${#VALID_ICONS_PATH[0]}
+  BEST_ICON=""
+  for ((INDEX=0 ; INDEX < ${#VALID_ICONS_PATH[@]}; INDEX++)); do
+    # File must be an image
+    if [[ "`xdg-mime query filetype ${VALID_ICONS_PATH[$INDEX]} | grep "^image" -c`" == "1" ]]; then
+      RESULT=`basename ${VALID_ICONS_PATH[$INDEX]}`      # Remove path
+      RESULT=`echo ${RESULT} | cut -f 1 -d '.'`          # Remove extension
+      EXTRA_CHARS=${RESULT//$ICON_NAME/}                 # Remove icon name
+      DIRTY=${#EXTRA_CHARS}
+      if [[ $DIRTY -lt $BEST_SCORE ]]; then
+        BEST_SCORE=${DIRTY}
+        BEST_INDEX=${INDEX}
+        BEST_ICON="${RESULT}"
+        if [[ $DIRTY == 0 ]]; then
+          break
+        fi
+      fi
+    fi
+  done
+  echo "${VALID_ICONS_PATH[$BEST_INDEX]}"
+}
+
+# Work like ssh-askpass
+if [[ "`cat /proc/${PPID}/comm`" == "ssh" ]]; then
+  zenity --entry \
+         --window-icon=`get_icon_path "dialog-password" "24"` \
+         --hide-text \
+         --title="zen-askpass" \
+         --text="$@"
+else
+  main
+fi
