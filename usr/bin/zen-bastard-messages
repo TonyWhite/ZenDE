@@ -1,0 +1,234 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# wmctrl
+# zenity
+
+ARGS=($@)
+MYSELF="$(realpath "$0")"
+
+WARNING_MESSAGE=true
+CURIOSITY=false
+BRUTALITY=false
+FATALITY=false
+CASUALITY=false
+APOTHEOSIS=false
+
+function main()
+{
+  # Read arguments
+  if [[ "${#ARGS[@]}" != "0" ]]; then
+    for ITEM in ${ARGS[@]}; do
+      case "${ITEM}" in
+        "--no-warning")
+          WARNING_MESSAGE=false
+        ;;
+        "--curiosity")
+          CURIOSITY=true
+        ;;
+        "--brutality")
+          BRUTALITY=true
+        ;;
+        "--fatality")
+          FATALITY=true
+        ;;
+        "--casuality")
+          CASUALITY=true
+        ;;
+        "--apotheosis")
+          APOTHEOSIS=true
+        ;;
+        "--help")
+        show_help
+        ;;
+      esac
+    done
+  fi
+  
+  if [[ ${WARNING_MESSAGE} == true ]]; then
+    show_warning_message
+  else
+    show_message 2>/dev/null
+  fi
+  
+  # Now destroy balls integrity
+  FLOOD_ME=2
+  if [[ $CURIOSITY == true ]]; then FLOOD_ME=3; fi
+  if [[ $BRUTALITY == true ]]; then FLOOD_ME=10; fi
+  if [[ $FATALITY == true ]]; then FLOOD_ME=50; fi
+  if [[ $CASUALITY == true ]]; then FLOOD_ME=$(( ( RANDOM % 100 )  + 1 )); fi # Random number (MIN=1 && MAX=100)
+  if [[ $APOTHEOSIS == true ]]; then FLOOD_ME=100; fi
+  open_myself ${FLOOD_ME}
+}
+
+function show_warning_message()
+{
+  zenity --warning --ellipsize --title="${TITLE}" --text="${LABEL_DONT_CLICK}" --ok-label="${LABEL_HERE}" --extra-button="${LABEL_OK}" &>/dev/null
+  if [[ $? == 1 ]]; then
+    kill_em_all
+    exit
+  fi
+}
+
+function kill_em_all()
+{
+  # WARNING! Don't put this script in the .jar
+  # ps read current processes
+  # -u read user's processes
+  # -f show full format
+  SCORE=0
+  OLDIFS=$IFS
+  IFS=$'\n'
+  INSTANCES=(`ps -f -u ${USER} | grep "bash" | grep "${MYSELF}" | grep "\--no-warning"`)
+  INSTANCES+=(`ps -f -u ${USER} | grep -i "zenity" | grep "${TITLE}" | grep "${LABEL_KNOCK}"`)
+  for ITEM in ${INSTANCES[@]}; do
+    ITEM_PID="`echo ${ITEM} | xargs | cut -f 2 -d ' '`"
+    kill ${ITEM_PID}
+    if [[ "${ITEM}" == *"zenity"* ]] && [[ "${ITEM}" == *"${TITLE}"* ]] && [[ "${ITEM}" == *"${LABEL_KNOCK}"* ]]; then
+      SCORE=$[$SCORE+1]
+      sleep 0.1
+    fi
+  done
+  IFS=${OLDIFS}
+  
+  if [[ "${SCORE}" == "0" ]]; then
+    zenity --info --ellipsize --title="${TITLE}" --text="${LABEL_YOU_ARE_WISE}" 2>/dev/null
+  else
+    zenity --info --ellipsize --title="${TITLE}" --icon-name="face-laugh" --text="${LABEL_SCORE}: ${SCORE}\n\n${LABEL_SCORE_INFO}" 2>/dev/null
+  fi
+}
+
+function show_message()
+{
+  zenity --warning --ellipsize --title="${TITLE}" --icon-name="face-laugh" --text="${LABEL_KNOCK}" --ok-label="${LABEL_WHOIS}" 2>/dev/null &
+  MESSAGE_PID=$!
+  
+  # I don't want to use the :ACTIVE: window because:
+  # 1) Must wait until zenity is ready
+  # 2) other instances will be created at the same time
+  
+  # Wait until window is listed in WM
+  while [[ "`wmctrl -lp | grep -c "${MESSAGE_PID}"`" == "0" ]]; do
+    true
+  done
+  # Wait until window is ready
+  MESSAGE_WID=""
+  while [[ "${#MESSAGE_WID}" -eq "0" ]]; do
+    MESSAGE_WID="`wmctrl -lp | grep "${MESSAGE_PID}" | cut -f 1 -d ' '`"
+  done
+  
+  # Read message geometry
+  MESSAGE_WIDTH=$(xwininfo -id "${MESSAGE_WID}" | awk '$1=="Width:" {print $2}')
+  MESSAGE_HEIGHT=$(xwininfo -id "${MESSAGE_WID}" | awk '$1=="Height:" {print $2}')
+  
+  # Read screen geometry
+  SCREEN_WIDTH=$(xwininfo -root | awk '$1=="Width:" {print $2}')
+  SCREEN_HEIGHT=$(xwininfo -root | awk '$1=="Height:" {print $2}')
+  
+  # Detect play area
+  MIN_X=0
+  MAX_X=$(( SCREEN_WIDTH - MESSAGE_WIDTH ))
+  MIN_Y=$(( ( SCREEN_WIDTH * 5 ) / 100 ))
+  MAX_Y=$(( SCREEN_HEIGHT - MESSAGE_HEIGHT - MIN_Y ))
+  
+  # Calculate random window position
+  RANDOM_X=$(( ( RANDOM % MAX_X )  + MIN_X )); RANDOM_Y=$(( ( RANDOM % MAX_Y )  + MIN_Y )); wmctrl -ir ${MESSAGE_WID} -e 0,${RANDOM_X},${RANDOM_Y},${MESSAGE_WIDTH},${MESSAGE_HEIGHT}
+  RANDOM_Y=$(( ( RANDOM % MAX_Y )  + MIN_Y ))
+  
+  # Set random window position
+  wmctrl -ir ${MESSAGE_WID} -e 0,${RANDOM_X},${RANDOM_Y},${MESSAGE_WIDTH},${MESSAGE_HEIGHT}
+  
+  wait $MESSAGE_PID
+}
+
+function open_myself()
+{
+  RULEZ="--no-warning"
+  if [[ $APOTHEOSIS == true ]]; then
+    RULEZ+=" --apotheosis"
+  elif [[ $CASUALITY == true ]]; then
+    RULEZ+=" --casuality"
+  elif [[ $FATALITY == true ]]; then
+    RULEZ+=" --fatality"
+  elif [[ $BRUTALITY == true ]]; then
+    RULEZ+=" --brutality"
+  elif [[ $CURIOSITY == true ]]; then
+    RULEZ+=" --curiosity"
+  fi
+  
+  for ((I=0 ; I < $1; I++)); do
+    bash ${MYSELF} ${RULEZ} &
+    sleep 0.1
+  done
+}
+
+function show_help()
+{
+  echo "zen-messages (${VERSION} ${VERSION_NUM})"
+  echo "${NO_PARAMS}:"
+  echo "                        - ${HELP_NO_PARAMS}"
+  echo "${YES_PARAMS}:"
+  echo "--help                  - ${HELP_SHOW_THIS_MESSAGE}"
+  echo "--no-warning            - ${HELP_NO_WARNING}"
+  echo "--curiosity             - ${HELP_CURIOSITY}"
+  echo "--brutality             - ${HELP_BRUTALITY}"
+  echo "--fatality              - ${HELP_FATALITY}"
+  echo "--casuality             - ${HELP_CASUALITY}"
+  echo "--apotheosis            - ${HELP_APOTHEOSIS}"
+  echo ""
+  echo "${EXAMPLE}:"
+  echo "zen-messages --casuality"
+  true
+  exit
+}
+
+VERSION_NUM="RC" # Don't translate!
+
+# Default language: en_US
+TITLE="Bastard Messages"
+VERSION="Version"
+NO_PARAMS="No parameters"
+YES_PARAMS="Parameters"
+HELP_NO_PARAMS="Start this bastard game"
+HELP_SHOW_THIS_MESSAGE="Show this message"
+HELP_NO_WARNING="Disable first warning message"
+HELP_CURIOSITY="Pop 3 messages instead of 2"
+HELP_BRUTALITY="Pop 10 messages instead of 2"
+HELP_FATALITY="Pop 50 messages instead of 2"
+HELP_CASUALITY="Pop a random number of messages (MIN=1; MAX=100)"
+HELP_APOTHEOSIS="Pop 100 messages instead of 2"
+LABEL_KNOCK="knock-knock"
+LABEL_WHOIS="Who is?"
+LABEL_DONT_CLICK="Don't click HERE!"
+LABEL_HERE="HERE!"
+LABEL_OK="OK"
+LABEL_YOU_ARE_WISE="You are wise"
+LABEL_SCORE="Score"
+LABEL_SCORE_INFO="This message is easily fakeable.\nIf you want to share your score (and be believed) make a video!"
+# Import current language. If it fails, en_US will be used
+case "`echo ${LANG} | cut -f1 -d ' ' | cut -f1 -d '.'`" in
+  "it_IT")
+    TITLE="Messaggi Bastardi"
+    VERSION="Versione"
+    NO_PARAMS="Nessun parametro"
+    YES_PARAMS="Parametri"
+    HELP_NO_PARAMS="Avvia questo gioco bastardo"
+    HELP_SHOW_THIS_MESSAGE="Mostra questo messaggio"
+    HELP_NO_WARNING="Disabilita il primo messaggio di avviso"
+    HELP_CURIOSITY="Fa spuntare 3 messaggi invece di 2"
+    HELP_BRUTALITY="Fa spuntare 10 messaggi invece di 2"
+    HELP_FATALITY="Fa spuntare 50 messaggi invece di 2"
+    HELP_CASUALITY="Fa spuntare un numero casuale di messaggi (MIN=1; MAX=100)"
+    HELP_APOTHEOSIS="Fa spuntare 100 messaggi invece di 2"
+    LABEL_KNOCK="toc toc"
+    LABEL_WHOIS="Chi è?"
+    LABEL_DONT_CLICK="Non cliccare QUI!"
+    LABEL_HERE="QUI!"
+    LABEL_OK="OK"
+    LABEL_YOU_ARE_WISE="Tu sei saggio"
+    LABEL_SCORE="Punteggio"
+    LABEL_SCORE_INFO="Questo messaggio è facilmente falsificabile.\nSe vuoi condividere il tuo punteggio (ed essere creduto) fai un video!"
+    ;;
+esac
+
+main
