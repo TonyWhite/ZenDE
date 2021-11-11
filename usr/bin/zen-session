@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# DEPENDENCIES
+# jwm
+# lxpolkit
+# mate-notification-daemon
+# x11-xkb-utils
+# zenity
+
+# Desktop Environment Name
+export XDG_CURRENT_DESKTOP="Zen"
+
+# Apply keyboard config
+source "/etc/default/keyboard"
+if [[ "${#XKBMODEL}" -gt "0" ]]; then
+  setxkbmap -model ${XKBMODEL}
+fi
+if [[ "${#KBLAYOUT}" -gt "0" ]]; then
+  setxkbmap -layout ${KBLAYOUT}
+fi
+
+# Inhibits x11 beep
+xset b off
+
+# Inhibits x11 screen blanking
+xset s off && xset -dpms &
+
+# Start Polkit
+lxpolkit &
+
+# Execute Desktop Environment
+exec jwm
