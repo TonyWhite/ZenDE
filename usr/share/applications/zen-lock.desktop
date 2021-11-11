@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Zen Lock
+Icon=lock
+Exec=zen-lock
+NoDisplay=false
+Categories=System;
+StartupNotify=false
+Terminal=false
