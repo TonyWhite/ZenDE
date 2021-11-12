@@ -335,6 +335,14 @@ function install_environment()
   wget "${ZEN_REPO}/usr/share/applications/${NAME}.desktop"
   chmod +x "${NAME}.desktop"
   
+  NAME="zen-wallpaper"
+  cd "/usr/bin"
+  wget "${ZEN_REPO}/usr/bin/${NAME}"
+  chmod +x "${NAME}"
+  cd "/usr/share/applications"
+  wget "${ZEN_REPO}/usr/share/applications/${NAME}.desktop"
+  chmod +x "${NAME}.desktop"
+  
   NAME="zen-sysinfo"
   cd "/usr/bin"
   wget "${ZEN_REPO}/usr/bin/${NAME}"
