@@ -180,7 +180,7 @@ function jwm_per_user()
 function install_environment()
 {
   # Install applications
-  apt-get -y install xorg dbus-x11 jwm coreutils bc sudo zenity fbautostart mate-notification-daemon lightdm pcmanfm menulibre connman cmst grun firefox-esr gvfs-backends sshfs synaptic gparted cups lxtask galculator galternatives xarchiver sakura audacious vlc font-manager gucharmap conky-all arandr baobab neofetch pluma i3lock feh imagemagick gpicview x11-xserver-utils lxappearance lxpolkit xscreensaver locate
+  apt-get -y install xorg dbus-x11 jwm coreutils bc sudo zenity fbautostart mate-notification-daemon lightdm pcmanfm menulibre connman cmst grun firefox-esr gvfs-backends sshfs synaptic gparted cups lxtask galculator galternatives xarchiver sakura audacious vlc font-manager gucharmap conky-all arandr baobab neofetch pluma i3lock feh imagemagick gpicview x11-xserver-utils lxappearance lxpolkit xscreensaver wmctrl locate
   
   # Pacchetto light-locker
   # si installa automaticamente?
