@@ -14,7 +14,7 @@ This product is in alpha version and you must be a Linux expert to avoid trouble
 2. Install Debian Stable without X11, Desktop Environment or other WMs.
 3. Install SSH Server (recommended).
 4. Wait for the end of installation.
-5. Download "install.sh" and execute it.
+5. Download "install.sh" and execute it with root permissions.
 
 ```
 wget https://raw.githubusercontent.com/TonyWhite/ZenDE/main/install.sh
