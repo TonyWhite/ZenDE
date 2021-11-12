@@ -27,8 +27,11 @@ function main()
   IFS=$RETURN
   # SCANNING FILES
   # lists user's launchers without path
-  cd "${USER_APPLICATIONS_FOLDER}"
-  USER_LAUNCHERS=(`find *.desktop 2>/dev/null`)
+  USER_LAUNCHERS=()
+  if [[ -d "${USER_APPLICATIONS_FOLDER}" ]]; then
+    cd "${USER_APPLICATIONS_FOLDER}"
+    USER_LAUNCHERS=(`find *.desktop 2>/dev/null`)
+  fi
   
   # lists root's launchers without path
   cd "${ROOT_APPLICATIONS_FOLDER}"
