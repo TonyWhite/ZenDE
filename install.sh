@@ -398,6 +398,10 @@ function install_environment()
   wget "${ZEN_REPO}/usr/share/zen-de/wallpaper/${NAME}"
   NAME="zen-wallpaper.png"
   wget "${ZEN_REPO}/usr/share/zen-de/wallpaper/${NAME}"
+  NAME="current"
+  wget "${ZEN_REPO}/usr/share/zen-de/wallpaper/${NAME}"
+  NAME="config"
+  wget "${ZEN_REPO}/usr/share/zen-de/wallpaper/${NAME}"
 }
 
 main
