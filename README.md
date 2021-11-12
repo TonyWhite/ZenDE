@@ -21,3 +21,12 @@ wget https://raw.githubusercontent.com/TonyWhite/ZenDE/main/install.sh
 chmod +x install.sh
 ./install.sh
 ```
+
+6. If you are in VM Debian, you need to prepare kernel before install VirtualBoxAdditions
+
+```
+sudo apt-get install build-essential module-assistant
+sudo m-a prepare
+```
+
+Now you can install VirtualBoxAdditions.
