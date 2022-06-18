@@ -155,28 +155,30 @@ function manage_arguments()
   if [[ "${ARG_PORT}" == "" ]]; then ARG_PORT="22"; fi
   if [[ "${ARG_REMOTE_FOLDER}" == "" ]]; then ARG_REMOTE_FOLDER="/${ARG_USER}"; fi
   
+  USERNAME="${ARG_USER}"
+  REMOTE_IP="${ARG_IP}"
+  REMOTE_FOLDER="${ARG_REMOTE_FOLDER}"
+  LOCAL_FOLDER="${ARG_LOCAL_FOLDER}"
+  REMOTE_PORT="${ARG_PORT}"
+  
   # check mountpoint
   if [[ "${ARG_CHECK}" == "true" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "false" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
     check_sshfs "${ARG_LOCAL_FOLDER}"
   
   # mount folder
   elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "true" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "false" && "${ARG_USER}" != "" && "${ARG_IP}" != "" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
-    export SSH_ASKPASS="$(realpath "$0")"
-    sshfs ${ARG_USER}@${ARG_IP}:"${ARG_REMOTE_FOLDER}" "${ARG_LOCAL_FOLDER}" -p ${ARG_PORT}
+    zen_mount
   
   # unmount folder
   elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "true" && "${ARG_SWITCH}" == "false" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
-    pkexec umount "${ARG_LOCAL_FOLDER}"
+    zen_unmount
   
   # switch mount/unmount remote folder
   elif [[ "${ARG_CHECK}" == "false" && "${ARG_MOUNT}" == "false" && "${ARG_UNMOUNT}" == "false" && "${ARG_SWITCH}" == "true" && "${ARG_USER}" != "" && "${ARG_IP}" != "" && "${ARG_LOCAL_FOLDER}" != "" ]]; then
     if [[ "`check_sshfs "${ARG_LOCAL_FOLDER}"`" == "true" ]]; then
-      # unmount folder
-      pkexec umount "${ARG_LOCAL_FOLDER}"
+      zen_unmount
     else
-      # mount folder
-      export SSH_ASKPASS="$(realpath "$0")"
-      sshfs ${ARG_USER}@${ARG_IP}:"${ARG_REMOTE_FOLDER}" "${ARG_LOCAL_FOLDER}" -p ${ARG_PORT}
+      zen_mount
     fi
   
   # If bad arguments
@@ -285,20 +287,24 @@ function mount_sshfs()
              --title="${TITLE}" \
              --text="${INFO_MANDATORY_PARAMS}"
     else
-      export SSH_ASKPASS="$(realpath "$0")"
-      sshfs ${USERNAME}@${REMOTE_IP}:"${REMOTE_FOLDER}" "${LOCAL_FOLDER}" -p ${REMOTE_PORT}
-      if [[ "$?" == "0" ]]; then
-        zenity --notification \
-               --window-icon="${MAIN_ICON}" \
-               --text="${INFO_CONNECTION_OK}\n${LOCAL_FOLDER}"
-      else
-        zenity --notification \
-               --window-icon="error" \
-               --text="${INFO_CONNECTION_KO}\n${USERNAME}@${REMOTE_IP}:${REMOTE_PORT}\n${REMOTE_FOLDER}"
-      fi
+      zen_mount
     fi
   fi
-  
+}
+
+function zen_mount()
+{
+  export SSH_ASKPASS="$(realpath "$0")"
+  sshfs ${USERNAME}@${REMOTE_IP}:"${REMOTE_FOLDER}" "${LOCAL_FOLDER}" -p ${REMOTE_PORT}
+  if [[ "$?" == "0" ]]; then
+    zenity --notification \
+           --window-icon="${MAIN_ICON}" \
+           --text="${INFO_CONNECTION_OK}\n${LOCAL_FOLDER}"
+  else
+    zenity --notification \
+           --window-icon="error" \
+           --text="${INFO_CONNECTION_KO}\n${USERNAME}@${REMOTE_IP}:${REMOTE_PORT}\n${REMOTE_FOLDER}"
+  fi
 }
 
 function unmount_sshfs()
@@ -356,27 +362,32 @@ function unmount_sshfs()
                       --width=$(( $SCREEN_WIDTH / 3 )) \
                       --height=$(( $SCREEN_HEIGHT / 3 )) )
     if [[ "$?" == "0" ]]; then
-      zenity --question \
-             --ellipsize \
+      zen_unmount
+    fi
+  fi
+}
+
+function zen_unmount()
+{
+  zenity --question \
+         --ellipsize \
+         --window-icon="${MAIN_ICON}" \
+         --title="${TITLE}" \
+         --text="<b>${QUESTION_DISCONNECT}</b>\
+         \n\n${LABEL_USERNAME}: ${USERNAME[${SELECTED}]}\
+         \n${LABEL_REMOTE_IP}: ${REMOTE_IP[${SELECTED}]}\
+         \n${LABEL_REMOTE_FOLDER}: ${REMOTE_FOLDER[${SELECTED}]}\
+         \n${LABEL_LOCAL_FOLDER}: ${LOCAL_FOLDER[${SELECTED}]}"
+  if [[ "$?" == "0" ]]; then
+    pkexec umount "${LOCAL_FOLDER[${SELECTED}]}"
+    if [[ `check_sshfs "${LOCAL_FOLDER[${SELECTED}]}"` == true ]]; then
+      zenity --notification \
+             --window-icon="error" \
+             --text="${INFO_DISCONNECTION_KO}\n${LOCAL_FOLDER[${SELECTED}]}"
+    else
+      zenity --notification \
              --window-icon="${MAIN_ICON}" \
-             --title="${TITLE}" \
-             --text="<b>${QUESTION_DISCONNECT}</b>\
-             \n\n${LABEL_USERNAME}: ${USERNAME[${SELECTED}]}\
-             \n${LABEL_REMOTE_IP}: ${REMOTE_IP[${SELECTED}]}\
-             \n${LABEL_REMOTE_FOLDER}: ${REMOTE_FOLDER[${SELECTED}]}\
-             \n${LABEL_LOCAL_FOLDER}: ${LOCAL_FOLDER[${SELECTED}]}"
-      if [[ "$?" == "0" ]]; then
-        pkexec umount "${LOCAL_FOLDER[${SELECTED}]}"
-        if [[ `check_sshfs "${LOCAL_FOLDER[${SELECTED}]}"` == true ]]; then
-          zenity --notification \
-                 --window-icon="error" \
-                 --text="${INFO_DISCONNECTION_KO}\n${LOCAL_FOLDER[${SELECTED}]}"
-        else
-          zenity --notification \
-                 --window-icon="${MAIN_ICON}" \
-                 --text="${INFO_DISCONNECTION_OK}\n${LOCAL_FOLDER[${SELECTED}]}"
-        fi
-      fi
+             --text="${INFO_DISCONNECTION_OK}\n${LOCAL_FOLDER[${SELECTED}]}"
     fi
   fi
 }
