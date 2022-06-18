@@ -129,23 +129,23 @@ function manage_arguments()
       ;;
       
       "--user="*)
-      ARG_USER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ARG_USER="`echo "${ITEM}" | cut -d '=' -f 2-`"
       ;;
       
       "--ip="*)
-      ARG_IP="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ARG_IP="`echo "${ITEM}" | cut -d '=' -f 2-`"
       ;;
       
       "--port="*)
-      ARG_PORT="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ARG_PORT="`echo "${ITEM}" | cut -d '=' -f 2-`"
       ;;
       
       "--remotefolder="*)
-      ARG_REMOTE_FOLDER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ARG_REMOTE_FOLDER="`echo "${ITEM}" | cut -d '=' -f 2-`"
       ;;
       
       "--localfolder="*)
-      ARG_LOCAL_FOLDER="`echo "${ITEM}" | cut -f 2 -d '='`"
+      ARG_LOCAL_FOLDER="`echo "${ITEM}" | cut -d '=' -f 2-`"
       ;;
     esac
     INDEX=$[$INDEX+1]
