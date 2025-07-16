@@ -2,7 +2,7 @@
 
 # DEPENDENCIES
 # findutils (xargs)
-# neofetch
+# neofetch | fastfetch
 # zenity
 # any polkit
 
@@ -453,7 +453,17 @@ function get_icon_path()
   
   # Detect icon theme
   IFS=" "
-  FETCHINFO=(`neofetch --stdout | grep -m 1 -i "^Icons" | cut -f2 -d ':' | xargs | cut -f1 -d ' '`)
+  FETCHINFO=""
+  neofetch --help 2>/dev/null
+  if [[ "$?" == "0" ]]; then
+    FETCHINFO=(`neofetch --stdout | grep -m 1 -i "^Icons" | cut -f2 -d ':' | xargs | cut -f1 -d ' '`)
+  else
+    fastfetch --help 2>/dev/null
+    if [[ "$?" == "0" ]]; then
+      FETCHINFO=(`fastfetch --pipe true --logo none | grep -m 1 -i "^Icons" | cut -f2 -d ':' | xargs | cut -f1 -d ' '`)
+    fi
+  fi
+  
   ICON_THEME_NAME=""
   for ((INDEX=0 ; INDEX < ${#FETCHINFO[@]}; INDEX++)); do
     if [[ ${#ICON_THEME_NAME} -gt 0 ]]; then
