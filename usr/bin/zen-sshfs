@@ -379,7 +379,7 @@ function zen_unmount()
          \n${LABEL_REMOTE_FOLDER}: ${REMOTE_FOLDER[${SELECTED}]}\
          \n${LABEL_LOCAL_FOLDER}: ${LOCAL_FOLDER[${SELECTED}]}"
   if [[ "$?" == "0" ]]; then
-    pkexec umount "${LOCAL_FOLDER[${SELECTED}]}"
+    umount "${LOCAL_FOLDER[${SELECTED}]}"
     if [[ `check_sshfs "${LOCAL_FOLDER[${SELECTED}]}"` == true ]]; then
       zenity --notification \
              --window-icon="error" \
