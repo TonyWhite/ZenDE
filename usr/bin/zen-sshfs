@@ -5,11 +5,10 @@
 # neofetch | fastfetch
 # zenity
 # any polkit
+# ssh-askpass-gnome (gnome-ssh-askpass)
 
 # FEATURES
 # Manage SSHFS connections
-# Works like ssh-askpass with zenity GUI
-# zeroconfig: only 1 script for auto-configure & auto-execute
 # It is DE agnostic!
 
 VERSION_NUM="RC" # Don't translate!
@@ -554,13 +553,4 @@ function get_icon_path()
   echo "${VALID_ICONS_PATH[$BEST_INDEX]}"
 }
 
-# Work like ssh-askpass
-if [[ "`cat /proc/${PPID}/comm`" == "ssh" ]]; then
-  zenity --entry \
-         --window-icon=`get_icon_path "dialog-password" "24"` \
-         --hide-text \
-         --title="zen-askpass" \
-         --text="$@"
-else
-  main
-fi
+main
