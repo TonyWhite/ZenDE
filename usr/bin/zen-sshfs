@@ -193,7 +193,7 @@ function start_gui()
 {
   MAIN_ICON=$(get_icon_path "folder-remote" "scalable")
   while true; do
-    ACTION=$(zenity --window-icon="${MAIN_ICON}" \
+    ACTION=$(zenity --icon="${MAIN_ICON}" \
                     --title="${TITLE}" \
                     --list \
                     --text="<b>${WHAT_TO_DO}</b>" \
@@ -223,7 +223,7 @@ function mount_sshfs()
 {
   SEPARATOR=$'\n'
   ACTION=$(zenity --forms \
-                  --window-icon="${MAIN_ICON}" \
+                  --icon="${MAIN_ICON}" \
                   --title="${TITLE}" \
                   --text="${LABEL_MOUNT}" \
                   --separator="${SEPARATOR}" \
@@ -282,7 +282,7 @@ function mount_sshfs()
     
     if [[ ${CORRECT_INPUTS} == false ]]; then
       zenity --warning \
-             --window-icon="${MAIN_ICON}" \
+             --icon="${MAIN_ICON}" \
              --ellipsize \
              --title="${TITLE}" \
              --text="${INFO_MANDATORY_PARAMS}"
@@ -294,15 +294,14 @@ function mount_sshfs()
 
 function zen_mount()
 {
-  export SSH_ASKPASS="$(realpath "$0")"
   sshfs ${USERNAME}@${REMOTE_IP}:"${REMOTE_FOLDER}" "${LOCAL_FOLDER}" -p ${REMOTE_PORT}
   if [[ "$?" == "0" ]]; then
     zenity --notification \
-           --window-icon="${MAIN_ICON}" \
+           --icon="${MAIN_ICON}" \
            --text="${INFO_CONNECTION_OK}\n${LOCAL_FOLDER}"
   else
     zenity --notification \
-           --window-icon="error" \
+           --icon="error" \
            --text="${INFO_CONNECTION_KO}\n${USERNAME}@${REMOTE_IP}:${REMOTE_PORT}\n${REMOTE_FOLDER}"
   fi
 }
@@ -340,7 +339,7 @@ function unmount_sshfs()
   if [[ "${INDEX}" == "0" ]]; then
     zenity --info \
            --ellipsize \
-           --window-icon="${MAIN_ICON}" \
+           --icon="${MAIN_ICON}" \
            --title="${TITLE}" \
            --text="${INFO_NO_CONNECTIONS}"
   else
@@ -348,7 +347,7 @@ function unmount_sshfs()
     SCREEN_HEIGHT=$(xwininfo -root | awk '$1=="Height:" {print $2}')
     SELECTED=$(zenity --list \
                       --radiolist \
-                      --window-icon="${MAIN_ICON}" \
+                      --icon="${MAIN_ICON}" \
                       --title="${TITLE}" \
                       --text "<b>${LABEL_UNMOUNT}:</b>" \
                       --column "${LABEL_SELECT}" \
@@ -371,7 +370,7 @@ function zen_unmount()
 {
   zenity --question \
          --ellipsize \
-         --window-icon="${MAIN_ICON}" \
+         --icon="${MAIN_ICON}" \
          --title="${TITLE}" \
          --text="<b>${QUESTION_DISCONNECT}</b>\
          \n\n${LABEL_USERNAME}: ${USERNAME[${SELECTED}]}\
@@ -382,11 +381,11 @@ function zen_unmount()
     umount "${LOCAL_FOLDER[${SELECTED}]}"
     if [[ `check_sshfs "${LOCAL_FOLDER[${SELECTED}]}"` == true ]]; then
       zenity --notification \
-             --window-icon="error" \
+             --icon="error" \
              --text="${INFO_DISCONNECTION_KO}\n${LOCAL_FOLDER[${SELECTED}]}"
     else
       zenity --notification \
-             --window-icon="${MAIN_ICON}" \
+             --icon="${MAIN_ICON}" \
              --text="${INFO_DISCONNECTION_OK}\n${LOCAL_FOLDER[${SELECTED}]}"
     fi
   fi
